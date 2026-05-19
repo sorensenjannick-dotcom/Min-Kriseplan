@@ -263,8 +263,9 @@ function App(){
               </p>
             </div>
             <a href="tel:70201201" style={Object.assign({},S.fareBtn,{background:"#4895EF"})}>📞 Livslinjen – 70 201 201 – døgnet rundt</a>
-            <a href="tel:80200808" style={Object.assign({},S.fareBtn,{background:"#E63946"})}>📞 StofTelefonen – 80 20 08 08</a>
-            <a href="sms:1899" style={Object.assign({},S.fareBtn,{background:"#F4A261",color:"#1a1a2a"})}>💬 SMS-rådgivning – 1899</a>
+            <a href="tel:82121212" style={Object.assign({},S.fareBtn,{background:"#E63946"})}>☎️ Giftlinjen – 82 12 12 12 – overdosis/forgiftning</a>
+            <a href="tel:80200500" style={Object.assign({},S.fareBtn,{background:"#F4A261",color:"#1a1a2a"})}>📞 Alkolinjen (alkohol) – 80 200 500</a>
+            <a href="sms:1899" style={Object.assign({},S.fareBtn,{background:"#9B5DE5"})}>💬 SMS-rådgivning – 1899</a>
             <a href="tel:1813" style={Object.assign({},S.fareBtn,{background:"#c1121f"})}>🏥 1813 – Lægevagt</a>
             <a href="tel:112" style={Object.assign({},S.fareBtn,{background:"#9B0000"})}>🚨 112 – Livstruende nødsituation</a>
             <p style={{fontSize:"0.75rem",color:"#5a5a8a",textAlign:"center",fontStyle:"italic"}}>Du er ikke alene. Det er okay at bede om hjælp.</p>
@@ -712,9 +713,10 @@ function App(){
           }),
           React.createElement("button",{style:S.addBtn,onClick:function(){setSup(function(p){return p.concat([{navn:"",tlf:""}]);});}},"+ Tilføj kontakt"),
           React.createElement("p",{style:S.lbl},"Professionelle hjælpelinjer"),
-          [{navn:"StofTelefonen",tlf:"80 20 08 08",tid:"Alle dage",beskr:"Anonym rådgivning om stof og alkohol",farve:"#E63946"},
+          [{navn:"Giftlinjen – forgiftning/overdosis",tlf:"82 12 12 12",tid:"Døgnet rundt",beskr:"Akut rådgivning ved forgiftning, overdosis og rusmidler",farve:"#E63946"},
+           {navn:"Alkolinjen – alkohol",tlf:"80 200 500",tid:"Man 9-17, tir-fre 11-17",beskr:"Anonym rådgivning om alkoholproblemer",farve:"#F4A261"},
            {navn:"Livslinjen",tlf:"70 201 201",tid:"Døgnet rundt",beskr:"Når det er livstruende svært",farve:"#4895EF"},
-           {navn:"SMS-rådgivning",tlf:"Sms 1899",tid:"11–24 alle dage",beskr:"Skriv hvis du ikke vil tale",farve:"#F4A261"},
+           {navn:"SMS-rådgivning",tlf:"Sms 1899",tid:"11–24 alle dage",beskr:"Skriv hvis du ikke vil tale",farve:"#9B5DE5"},
           ].map(function(h){
             return React.createElement("div",{key:h.navn,style:Object.assign({},S.hotKort,{borderTop:"3px solid "+h.farve})},
               React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
