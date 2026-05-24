@@ -23,725 +23,1208 @@ input,textarea{font-family:'DM Sans',sans-serif;}
 @keyframes mb{from{opacity:0;}to{opacity:1;}}
 @keyframes mc{from{opacity:0;transform:translateY(30px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
 @keyframes bn{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
-@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dd{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
 .sin{animation:si .28s ease-out;}
 .fade{animation:fd .2s ease-out;}
 .modal-bg{animation:mb .2s ease-out;}
 .modal-card{animation:mc .25s cubic-bezier(.34,1.56,.64,1);}
 .bounce{animation:bn .5s ease;}
+.dropdown{animation:dd .2s ease-out;}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const {useState,useEffect}=React;
+const {useState,useEffect,useRef}=React;
 
-const FAREORD=[
-  "slå mig selv","gøre mig selv noget","skade mig selv","skære mig",
-  "tage mit liv","ikke vil leve mere","ikke orker at leve","vil ikke leve",
-  "selvmord","selv mord","overdosis med vilje","tage en overdosis",
-  "give op på livet","end det hele","afslutte det hele",
-  "har det ikke mere","orker ikke mere","vil dø","ønsker at dø",
-  "tænker på at dø","har tænkt på at skade mig","har skadet mig",
-  "har skåret mig","slår mig selv","straffe mig selv",
-  "skade andre","gøre andre noget","slå andre","tage livet af",
-  "dræbe","slå ihjel","gøre fortræd","angribe nogen","slå nogen",
+
+// ── FAREDETEKTERING ──────────────────────────────────────────────────────────
+const FAREORD = [
+  "slå mig selv","skade mig selv","skære mig","brænde mig","kvæle mig",
+  "slå mit hoved","gøre mig selv noget","straffe mig selv","har skadet mig",
+  "har skåret mig","har slået mig","har brændt mig","slog mig selv",
+  "tage mit liv","tage livet af mig","slut på mit liv","ende mit liv",
+  "ikke vil leve","ikke vil leve mere","ikke orker at leve","træt af at leve",
+  "vil ikke eksistere","ønsker at dø","vil dø","tænker på at dø",
+  "har lyst til at dø","vil ikke vågne op","sover ikke op igen",
+  "selvmord","begå selvmord","planlægger selvmord","har en plan om selvmord",
+  "har nedskrevet en plan","har lavet en plan om","har besluttet mig for at dø",
+  "kommer ikke til at være her","er ikke her i morgen","ses ikke mere",
+  "farvel for altid","dette er mit sidste","siger farvel",
+  "taget for mange piller","spist for mange piller","taget en overdosis",
+  "har spist en masse piller","har taget en masse piller","har taget alle pillerne",
+  "overdoseret","overdosis med vilje","forgiftet mig selv",
+  "giver op på livet","end det hele","afslutte det hele","er forbi nu",
+  "er færdig nu","ingen grund til at leve","intet at leve for","livet er ikke værd",
+  "slå andre","skade andre","gøre andre noget","tage livet af en anden",
+  "dræbe","slå ihjel","gøre fortræd","angribe nogen","vil gøre nogen ondt",
+  "har gjort nogen ondt","skadet en anden",
 ];
-function tjekFare(t){if(!t)return false;const v=t.toLowerCase();return FAREORD.some(o=>v.includes(o));}
+function tjekFare(t) {
+  if (!t) return false;
+  const v = t.toLowerCase();
+  return FAREORD.some(o => v.includes(o));
+}
 
-const GF=[
-  {id:"vrede",navn:"Vrede",emoji:"🔴",farve:"#E63946",beskrivelse:"Frustreret · irriteret · rasende",
-   nuancer:["Irriteret","Frustreret","Rasende","Skuffet","Hidsig","Bitter","Misundelig","Jaloux"],
-   tanker:["Det er uretfærdigt","Det er andres skyld","Ingen forstår mig","Jeg har ret til at reagere"],
-   kognitivt:"Vrede opstår ofte når vi oplever uretfærdighed eller føler os truet. Bag vreden gemmer sig ofte sårbarhed eller frygt.",
-   strategier:["Stop op – tæl til 10 inden du reagerer","Spørg: Hvad er jeg bange for bag vreden?","Skriv hvad du ikke tør sige højt","Bevæg kroppen – gå en tur eller løb"]},
-  {id:"angst",navn:"Angst",emoji:"🟡",farve:"#F4A261",beskrivelse:"Urolig · bange · nervøs",
-   nuancer:["Nervøs","Urolig","Bekymret","Bange","Panikket","Utryg","Overvældet","Rastløs"],
-   tanker:["Noget dårligt vil ske","Jeg kan ikke klare det","Hvad nu hvis…","Det er farligt"],
-   kognitivt:"Angst er kroppens alarmsystem. Den overdriver trusler og undervurderer dine ressourcer. Angsten lyver ofte om fremtiden.",
-   strategier:["4-7-8 vejrtrækning: ind 4 sek, hold 7, ud 8","5-4-3-2-1 jordforbindelsesøvelse: 5 ting du kan SE, 4 du kan RØRE, 3 du kan HØRE, 2 du kan LUGTE, 1 du kan SMAGE","Spørg: Hvad er det værste der KAN ske – og hvad gør jeg så?","Skriv bekymringen ned – ud af hovedet"]},
-  {id:"tristhed",navn:"Tristhed",emoji:"🔵",farve:"#4895EF",beskrivelse:"Ked af det · trist · ensom",
-   nuancer:["Ked af det","Trist","Tom","Ensom","Håbløs","Tung","Savner noget","Nedtrykt"],
-   tanker:["Ingen forstår mig","Det bliver aldrig bedre","Jeg er alene med det","Hvad er meningen?"],
-   kognitivt:"Tristhed signalerer at noget vigtigt er sket – et tab, en skuffelse. Det er ikke svaghed. Tristhed har brug for at blive mærket, ikke dulmet.",
-   strategier:["Tillad dig selv at føle det – sæt 10 minutter af","Ring til én du har tillid til","Skriv et brev til dig selv med omsorg","Gør én lille ting der plejer dig"]},
-  {id:"glæde",navn:"Glæde",emoji:"🟢",farve:"#2DC653",beskrivelse:"Glad · lettet · taknemmelig",
-   nuancer:["Glad","Lettet","Taknemlig","Håbefuld","Begejstret","Stolt","Kærlig","Rolig"],
-   tanker:["Det går faktisk okay","Jeg klarede det","Jeg er taknemmelig for…","Der er noget godt her"],
-   kognitivt:"Glæde er vigtig at lægge mærke til – særligt i recovery. Den minder dig om hvad der er værd at kæmpe for.",
-   strategier:["Skriv 3 ting du er taknemmelig for i dag","Del glæden med en anden","Notér: Hvad gjorde at det gik godt?","Brug det som motivation fremad"]},
-  {id:"skam",navn:"Skam",emoji:"🟣",farve:"#9B5DE5",beskrivelse:"Forkert · mindreværdig · skyldig",
-   nuancer:["Skyldig","Skamfuld","Mindreværdig","Forkert","Utilstrækkelig","Ydmyget","Pinlig","Sårbar"],
-   tanker:["Jeg er dårlig","Jeg fortjener ikke hjælp","Jeg er til besvær","Alle andre klarer det bedre"],
-   kognitivt:"Skam handler om hvem man tror man ER – ikke hvad man har gjort. Skam er en af de stærkeste udløsere for tilbagefald.",
-   strategier:["Skam trives i hemmelighed – del den med én du stoler på","Hvad ville du sige til en ven i samme situation?","Skelne skyld (adfærd) fra skam (person)","Skriv tre ting du har gjort godt, selvom det var svært"]},
-  {id:"afsky",navn:"Afsky",emoji:"🟠",farve:"#FB8500",beskrivelse:"Væmmelse · ubehag · lede",
-   nuancer:["Væmmelse","Ubehag","Lede","Afvisning","Kvalme","Foragt","Desillusioneret","Træt af det"],
-   tanker:["Jeg kan ikke holde ud at mærke det her","Det er ulideligt","Jeg vil væk fra dette","Jeg er træt af det hele"],
-   kognitivt:"Afsky kan være en reaktion på egne handlinger eller situationer. Bag afsky gemmer sig ofte smerte eller sorg.",
-   strategier:["Navngiv hvad du faktisk reagerer på","Spørg: Hvad har denne følelse brug for?","Giv dig selv tilladelse til at sætte grænser","Søg frisk luft og fysisk bevægelse"]},
-];
-
-const KT=[
-  {id:"situation",titel:"Situation",ikon:"①",farve:"#4895EF",fare:false,
-   spørgsmål:"Hvad skete der konkret?",hjælp:"Beskriv kun fakta – ikke tolkninger. Hvad ville et kamera optage?",
-   sammenhæng:"Situationen i sig selv er neutral – det er vores tanker om den, der sætter resten i gang.",
-   placeholder:"Fx: Jeg var alene hjemme og modtog en besked fra en gammel ven der bruger…"},
-  {id:"tanke",titel:"Automatisk tanke",ikon:"②",farve:"#F4A261",fare:true,
-   spørgsmål:"Hvad tænkte du i det øjeblik?",hjælp:"Automatiske tanker er hurtige og ubevidste. De opstår inden vi når at reflektere.",
-   sammenhæng:"Tanken udløser følelsen. Samme situation kan give vidt forskellige følelser – alt efter hvilken tanke der opstår.",
-   placeholder:"Fx: 'Det er kun én gang', 'Jeg fortjener lidt ro', 'Det gør ingen forskel'…"},
-  {id:"følelse",titel:"Følelse",ikon:"③",farve:"#9B5DE5",fare:false,
-   spørgsmål:"Hvilken følelse kom med tanken?",hjælp:"Følelsen følger altid tanken. Brug de 6 grundfølelser som guide.",
-   sammenhæng:"Følelsen forstærker tanken og sætter kroppen i beredskab. Følelse og krop påvirker hinanden gensidigt.",
-   placeholder:"Fx: Angst (80%), Skam, Ensomhed, Tristhed…"},
-  {id:"krop",titel:"Kropslig reaktion",ikon:"④",farve:"#C77DFF",fare:false,
-   spørgsmål:"Hvad mærkede du i kroppen?",hjælp:"Kroppen reagerer på følelser. Læg mærke til fysiske signaler – de er vigtige information.",
-   sammenhæng:"Kropslige signaler kan selv udløse nye tanker og følelser – fx kan hjertebanken føre til tanken 'noget er galt', som øger angsten.",
-   placeholder:"Fx: Klump i halsen, uro i brystet, spænding i skuldrene, hjertebanken…"},
-  {id:"adfærd",titel:"Adfærd / Handling",ikon:"⑤",farve:"#E63946",fare:true,
-   spørgsmål:"Hvad havde du lyst til at gøre – eller hvad gjorde du?",hjælp:"Adfærd og handlinger følger tanker, følelser og kropslige reaktioner – og påvirker dem igen.",
-   sammenhæng:"Adfærden afslutter ikke altid cirklen – nogle gange handler vi først, og bagefter opstår tankerne og følelserne. Cirklen kan starte hvor som helst og fortsætte i alle retninger.",
-   placeholder:"Fx: Ville isolere mig, tænkte på at bruge, ville ringe til en ven der bruger…"},
-  {id:"udfordring",titel:"Udfordring af tanken",ikon:"⑥",farve:"#2DC653",fare:false,
-   spørgsmål:"Er tanken sand? Hvad taler imod den?",hjælp:"Find beviser FOR og IMOD tanken. Hvad er en mere balanceret tanke?",
-   sammenhæng:"Når vi ændrer tanken, ændres følelsen – og dermed også kroppens reaktion og vores handlinger. Det er her forandringen starter.",
-   placeholder:"Fx: 'Det er ikke kun én gang – historien viser andet. En mere realistisk tanke er…'"},
-  {id:"handling",titel:"Ny handling",ikon:"⑦",farve:"#06D6A0",fare:false,
-   spørgsmål:"Hvad er et alternativt valg du kan træffe nu?",hjælp:"Baseret på den nye tanke – hvad er ét lille konkret skridt du KAN tage?",
-   sammenhæng:"En ny handling skaber en ny erfaring – som over tid ændrer automatiske tanker, dæmper følelser og beroliger kroppen.",
-   placeholder:"Fx: Ring til min behandler, gå en tur, skriv i dagbogen…"},
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const GF = [
+  { id:"vrede", navn:"Vrede", emoji:"🔴", farve:"#E63946", beskrivelse:"Frustreret · irriteret · rasende",
+    nuancer:["Irriteret","Frustreret","Rasende","Skuffet","Hidsig","Bitter","Misundelig","Jaloux"],
+    tanker:["Det er uretfærdigt","Det er andres skyld","Ingen forstår mig","Jeg har ret til at reagere"],
+    kognitivt:"Vrede opstår ofte når vi oplever uretfærdighed eller føler os truet. Bag vreden gemmer sig ofte sårbarhed eller frygt.",
+    strategier:["Stop op – tæl til 10 inden du reagerer","Spørg: Hvad er jeg bange for bag vreden?","Skriv hvad du ikke tør sige højt","Bevæg kroppen – gå en tur eller løb"] },
+  { id:"angst", navn:"Angst", emoji:"🟡", farve:"#F4A261", beskrivelse:"Urolig · bange · nervøs",
+    nuancer:["Nervøs","Urolig","Bekymret","Bange","Panikket","Utryg","Overvældet","Rastløs"],
+    tanker:["Noget dårligt vil ske","Jeg kan ikke klare det","Hvad nu hvis…","Det er farligt"],
+    kognitivt:"Angst er kroppens alarmsystem. Den overdriver trusler og undervurderer dine ressourcer. Angsten lyver ofte om fremtiden.",
+    strategier:["4-7-8 vejrtrækning: ind 4 sek, hold 7, ud 8","5-4-3-2-1 jordforbindelsesøvelse: 5 ting du kan SE, 4 du kan RØRE, 3 du kan HØRE, 2 du kan LUGTE, 1 du kan SMAGE","Spørg: Hvad er det værste der KAN ske – og hvad gør jeg så?","Skriv bekymringen ned – ud af hovedet"] },
+  { id:"tristhed", navn:"Tristhed", emoji:"🔵", farve:"#4895EF", beskrivelse:"Ked af det · trist · ensom",
+    nuancer:["Ked af det","Trist","Tom","Ensom","Håbløs","Tung","Savner noget","Nedtrykt"],
+    tanker:["Ingen forstår mig","Det bliver aldrig bedre","Jeg er alene med det","Hvad er meningen?"],
+    kognitivt:"Tristhed signalerer at noget vigtigt er sket – et tab, en skuffelse. Det er ikke svaghed. Tristhed har brug for at blive mærket, ikke dulmet.",
+    strategier:["Tillad dig selv at føle det – sæt 10 minutter af","Ring til én du har tillid til","Skriv et brev til dig selv med omsorg","Gør én lille ting der plejer dig"] },
+  { id:"glæde", navn:"Glæde", emoji:"🟢", farve:"#2DC653", beskrivelse:"Glad · lettet · taknemmelig",
+    nuancer:["Glad","Lettet","Taknemlig","Håbefuld","Begejstret","Stolt","Kærlig","Rolig"],
+    tanker:["Det går faktisk okay","Jeg klarede det","Jeg er taknemmelig for…","Der er noget godt her"],
+    kognitivt:"Glæde er vigtig at lægge mærke til – særligt i recovery. Den minder dig om hvad der er værd at kæmpe for.",
+    strategier:["Skriv 3 ting du er taknemmelig for i dag","Del glæden med en anden","Notér: Hvad gjorde at det gik godt?","Brug det som motivation fremad"] },
+  { id:"skam", navn:"Skam", emoji:"🟣", farve:"#9B5DE5", beskrivelse:"Forkert · mindreværdig · skyldig",
+    nuancer:["Skyldig","Skamfuld","Mindreværdig","Forkert","Utilstrækkelig","Ydmyget","Pinlig","Sårbar"],
+    tanker:["Jeg er dårlig","Jeg fortjener ikke hjælp","Jeg er til besvær","Alle andre klarer det bedre"],
+    kognitivt:"Skam handler om hvem man tror man ER – ikke hvad man har gjort. Skam er en af de stærkeste udløsere for tilbagefald.",
+    strategier:["Skam trives i hemmelighed – del den med én du stoler på","Hvad ville du sige til en ven i samme situation?","Skelne skyld (adfærd) fra skam (person)","Skriv tre ting du har gjort godt, selvom det var svært"] },
+  { id:"afsky", navn:"Afsky", emoji:"🟠", farve:"#FB8500", beskrivelse:"Væmmelse · ubehag · lede",
+    nuancer:["Væmmelse","Ubehag","Lede","Afvisning","Kvalme","Foragt","Desillusioneret","Træt af det"],
+    tanker:["Jeg kan ikke holde ud at mærke det her","Det er ulideligt","Jeg vil væk fra dette","Jeg er træt af det hele"],
+    kognitivt:"Afsky kan være en reaktion på egne handlinger eller situationer. Bag afsky gemmer sig ofte smerte eller sorg.",
+    strategier:["Navngiv hvad du faktisk reagerer på","Spørg: Hvad har denne følelse brug for?","Giv dig selv tilladelse til at sætte grænser","Søg frisk luft og fysisk bevægelse"] },
 ];
 
-const K5=[
-  {id:"stop",nr:1,titel:"Stop op",farve:"#E63946",emoji:"✋",beskrivelse:"Genkend at du er i en krisesituation. Sig det højt for dig selv: 'Jeg har det svært lige nu.'",handling:"Tag 3 langsomme, dybe vejrtrækninger. Sæt dig ned hvis du kan. Giv dig selv lov til at stoppe."},
-  {id:"pause",nr:2,titel:"Sæt på pause",farve:"#F4A261",emoji:"⏸️",beskrivelse:"Vent 15 minutter inden du handler. Trangen topper – og går over.",handling:"Gå en kort tur. Drik et glas koldt vand. Sæt musik på. Gør noget med hænderne."},
-  {id:"kontakt",nr:3,titel:"Kontakt nogen",farve:"#4895EF",emoji:"📞",beskrivelse:"Du behøver ikke klare det alene. Ræk ud – selv en kort besked hjælper.",handling:"Ring eller skriv til én på din støtteliste. Du behøver ikke forklare alt."},
-  {id:"strategi",nr:4,titel:"Brug en strategi",farve:"#9B5DE5",emoji:"🛡️",beskrivelse:"Hvad har hjulpet dig før? Brug det der virker for dig.",handling:"Skriv i dagbogen. Se en film. Lav noget mad. Brug en afslapningsteknik."},
-  {id:"selvomsorg",nr:5,titel:"Selvomsorg",farve:"#2DC653",emoji:"💛",beskrivelse:"Du er ikke svag – du er i en svær situation. Anerkend at du søgte hjælp.",handling:"Hvad ville du sige til en ven i samme situation? Sig det til dig selv."},
+const K5 = [
+  { id:"stop", nr:1, titel:"Stop op", farve:"#E63946", emoji:"✋", beskrivelse:"Genkend at du er i en krisesituation. Sig det højt for dig selv: 'Jeg har det svært lige nu.'", handling:"Tag 3 langsomme, dybe vejrtrækninger. Sæt dig ned hvis du kan. Giv dig selv lov til at stoppe." },
+  { id:"pause", nr:2, titel:"Sæt på pause", farve:"#F4A261", emoji:"⏸️", beskrivelse:"Vent 15 minutter inden du handler. Trangen topper – og går over.", handling:"Gå en kort tur. Drik et glas koldt vand. Sæt musik på. Gør noget med hænderne." },
+  { id:"kontakt", nr:3, titel:"Kontakt nogen", farve:"#4895EF", emoji:"📞", beskrivelse:"Du behøver ikke klare det alene. Ræk ud – selv en kort besked hjælper.", handling:"Ring eller skriv til én på din støtteliste. Du behøver ikke forklare alt." },
+  { id:"strategi", nr:4, titel:"Brug en strategi", farve:"#9B5DE5", emoji:"🛡️", beskrivelse:"Hvad har hjulpet dig før? Brug det der virker for dig.", handling:"Skriv i dagbogen. Se en film. Lav noget mad. Brug en afslapningsteknik." },
+  { id:"selvomsorg", nr:5, titel:"Selvomsorg", farve:"#2DC653", emoji:"💛", beskrivelse:"Du er ikke svag – du er i en svær situation. Anerkend at du søgte hjælp.", handling:"Hvad ville du sige til en ven i samme situation? Sig det til dig selv." },
 ];
 
-function ls(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}}
-function ss(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
-function dato(){return new Date().toLocaleDateString("da-DK",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+const MENU_SEKTIONER = [
+  {
+    id:"om", titel:"Om appen", emoji:"ℹ️",
+    afsnit:[
+      {titel:"Hvad er Min Kriseplan?", tekst:"Min Kriseplan er en selvhjælpsapp baseret på kognitiv tilgang. Den er udviklet til mennesker med rusmiddelproblematik og kan bruges individuelt eller som supplement i professionel behandling."},
+      {titel:"Hvem har lavet appen?", tekst:"Appen er udviklet af Jannick Sørensen. Al indhold i appen – dagbog, analyser og kriseplaner – kommer udelukkende fra dig selv som bruger."},
+      {titel:"Vigtig ansvarsfraskrivelse", tekst:"Denne app erstatter ikke professionel behandling, psykologhjælp eller lægelig rådgivning. Faredetekteringen er et supplement og ikke en garanti. Søg altid professionel hjælp ved behov.\n\n© Jannick Sørensen 2026. Alle rettigheder forbeholdes.", farve:"#E63946"},
+    ]
+  },
+  {
+    id:"kognitiv", titel:"Kognitiv tilgang i dybden", emoji:"🧠",
+    afsnit:[
+      {titel:"Hvad er kognitiv tilgang?", tekst:"Kognitiv tilgang bygger på idéen om at tanker, følelser, kropslige reaktioner og adfærd hænger uløseligt sammen og påvirker hinanden i alle retninger. Når vi bliver opmærksomme på vores automatiske tanker, kan vi undersøge om de er sande – og vælge at reagere anderledes."},
+      {titel:"Hvornår er kognitiv tilgang god?", tekst:"Kognitiv tilgang er særligt effektiv når du:\n\n• Ønsker at forstå dine egne mønstre og reaktioner\n• Vil arbejde med at identificere tidlige advarselssignaler\n• Har brug for konkrete redskaber til at håndtere trang og svære situationer\n• Arbejder med forandring over tid og ønsker at gøre det bevidst\n• Bruger appen som supplement til behandling hos en professionel"},
+      {titel:"Hvornår bør du søge noget andet?", tekst:"Kognitiv tilgang og denne app er ikke tilstrækkelig hvis du:\n\n• Har akutte kriser eller tanker om at skade dig selv eller andre – ring 112 eller 1813\n• Oplever svære psykiatriske symptomer som psykoser, svær depression eller angst\n• Har brug for medicinsk afrusning eller behandling\n• Føler at du ikke kan klare det alene – søg professionel hjælp\n\nSøg altid din læge, behandler eller et behandlingscenter hvis du er i tvivl.", farve:"#E63946"},
+      {titel:"Begrænsninger", tekst:"Selvhjælp er et supplement – ikke en erstatning. Kognitiv tilgang virker bedst i kombination med professionel støtte, sociale relationer og en tryg hverdag. Appen kan ikke tilbyde den menneskelige kontakt og faglige vurdering som en behandler kan."},
+    ]
+  },
+  {
+    id:"guide", titel:"Guide til appen", emoji:"📋",
+    afsnit:[
+      {titel:"🌊 Følelser", tekst:"Her finder du de 6 grundfølelser. Vælg den følelse der passer bedst, uddyb med en nuance og vurdér intensiteten. Du kan herefter gå direkte til den kognitive analyse med følelsen allerede udfyldt."},
+      {titel:"⟳ Analyser", tekst:"Den kognitive analyse guider dig igennem 5 trin: Situation → Tanke → Følelse → Kropslig reaktion → Adfærd/Handling.\n\nEfter trin 5 spørges du om din adfærd var ønsket. Hvis ikke, åbnes trin 6 (udfordring af tanken) og trin 7 (ny handling). Til sidst kan du vælge at starte en ny runde. Analysen gemmes automatisk i dagbogen."},
+      {titel:"🛡 Kriseplan", tekst:"Her bygger du din personlige kriseplan med:\n• Hvad er vigtigt for dig – din motivation\n• Mine advarselstegn – tidlige signaler\n• Min personlige aftale – en aftale med dig selv\n• Hvad hjælper faktisk – dine egne strategier\n• 5-trins kriseplan – hvad gør du når krisen rammer"},
+      {titel:"📖 Dagbog", tekst:"Dagbogen samler automatisk alle dine følelsestjek og kognitive analyser. Du kan filtrere mellem dem og folde hver registrering ud for at se detaljerne. Alt er gemt lokalt på din enhed."},
+      {titel:"◌ Følelsestjek", tekst:"Tilgås fra forsiden med 'Start tjek'. Du kan vælge én eller flere grundfølelser – hver følelse får sin egen intensitetsskyder (1-10).\n\nFølelser med intensitet over 2 overføres til analysen. Den eller de følelser med højst intensitet fremhæves, mens følelser med lavere intensitet vises dæmpet. Følelser med intensitet 1-2 gemmes i dagbogen men vises ikke i analysen.\n\nEfter at have gemt kan du vælge at gå direkte til den kognitive analyse med følelserne allerede udfyldt. Du kan også sætte daglige påmindelser med alarm-knappen 🔔."},
+      {titel:"◈ Støtte", tekst:"Her finder du dine personlige støttepersoner (som du selv udfylder), og professionelle hjælpelinjer: Giftlinjen, Alkolinjen, Livslinjen, SMS-rådgivning, 1813 og 112."},
+    ]
+  },
+];
 
-function App(){
-  const [view,setView]=useState("home");
-  const [adv,setAdv]=useState(()=>ls("adv")||["","","",""]);
-  const [vigtigt,setVigtigt]=useState(()=>ls("vigtigt")||"");
-  const [hvadHjælper,setHvadHjælper]=useState(()=>ls("hvadHjælper")||"");
-  const [aftale,setAftale]=useState(()=>ls("aftale")||"");
-  const [sup,setSup]=useState(()=>ls("sup")||[{navn:"Min behandler",tlf:""},{navn:"Nær ven / familie",tlf:""}]);
-  const [tjekHist,setTjekHist]=useState(()=>ls("tjekHist")||[]);
-  const [analyseHist,setAnalyseHist]=useState(()=>ls("analyseHist")||[]);
-  const [valgtF,setValgtF]=useState(null);
-  const [valgtN,setValgtN]=useState(null);
-  const [int,setInt]=useState(5);
-  const [kog,setKog]=useState({});
-  const [aktTrin,setAktTrin]=useState(null);
-  const [aktKrise,setAktKrise]=useState(null);
-  const [kriseStatus,setKriseStatus]=useState({});
-  const [tjekÅben,setTjekÅben]=useState(false);
-  const [tjekF,setTjekF]=useState(null);
-  const [tjekInt,setTjekInt]=useState(5);
-  const [tjekNote,setTjekNote]=useState("");
-  const [tjekGemt,setTjekGemt]=useState(false);
-  const [dagbogId,setDagbogId]=useState(null);
-  const [dagFilter,setDagFilter]=useState("alle");
-  const [visAlarm,setVisAlarm]=useState(false);
-  const [alarmer,setAlarmer]=useState([{id:1,aktiv:false,tid:"08:00",sat:false},{id:2,aktiv:false,tid:"20:00",sat:false}]);
-  const [fareÅben,setFareÅben]=useState(false);
+function ls(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } }
+function ss(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function dato() { return new Date().toLocaleDateString("da-DK", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }); }
 
-  useEffect(()=>ss("adv",adv),[adv]);
-  useEffect(()=>ss("vigtigt",vigtigt),[vigtigt]);
-  useEffect(()=>ss("hvadHjælper",hvadHjælper),[hvadHjælper]);
-  useEffect(()=>ss("aftale",aftale),[aftale]);
-  useEffect(()=>ss("sup",sup),[sup]);
-  useEffect(()=>ss("tjekHist",tjekHist),[tjekHist]);
-  useEffect(()=>ss("analyseHist",analyseHist),[analyseHist]);
+// ── APP ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [accepteret, setAccepteret] = useState(() => ls("accepteret") || false);
+  const [view, setView] = useState("home");
+  const [menuÅben, setMenuÅben] = useState(false);
+  const [menuSektion, setMenuSektion] = useState(null);
+  const menuRef = useRef(null);
 
-  const f=GF.find(x=>x.id===valgtF);
-  const aktAlarmer=alarmer.filter(a=>a.aktiv).length;
-  const allePoster=[...analyseHist,...tjekHist].sort((a,b)=>b.id-a.id);
-  const filtreret=dagFilter==="alle"?allePoster:allePoster.filter(p=>p.type===dagFilter);
-  const kriseDone=Object.values(kriseStatus).filter(Boolean).length;
+  // Persistent
+  const [adv, setAdv] = useState(() => ls("adv") || ["","","",""]);
+  const [vigtigt, setVigtigt] = useState(() => ls("vigtigt") || "");
+  const [hvadHjælper, setHvadHjælper] = useState(() => ls("hvadHjælper") || "");
+  const [aftale, setAftale] = useState(() => ls("aftale") || "");
+  const [sup, setSup] = useState(() => ls("sup") || [{navn:"Min behandler",tlf:""},{navn:"Nær ven / familie",tlf:""}]);
+  const [tjekHist, setTjekHist] = useState(() => ls("tjekHist") || []);
+  const [analyseHist, setAnalyseHist] = useState(() => ls("analyseHist") || []);
 
-  const updSup=(i,field,v)=>setSup(p=>{const c=[...p];c[i]={...c[i],[field]:v};return c;});
-  const updAdv=(i,v)=>setAdv(p=>{const c=[...p];c[i]=v;return c;});
-  const togKrise=(id)=>setKriseStatus(p=>({...p,[id]:!p[id]}));
-  const updKog=(id,val)=>{
-    setKog(prev=>{
-      const next={...prev,[id]:val};
-      const td=KT.find(t=>t.id===id);
-      if(td&&td.fare&&tjekFare(val))setFareÅben(true);
+  // Følelser
+  const [valgtF, setValgtF] = useState(null);
+  const [valgtN, setValgtN] = useState(null);
+  const [int, setInt] = useState(5);
+
+  // Analyse
+  const [analyseFase, setAnalyseFase] = useState("trin");
+  const [kog, setKog] = useState({situation:"",tanke:"",følelse:"",krop:"",adfærd:"",udfordring:"",handling:""});
+  const [analyseRunde, setAnalyseRunde] = useState(1);
+  const [aktivtTrin, setAktivtTrin] = useState(null);
+
+  // Kriseplan
+  const [aktKrise, setAktKrise] = useState(null);
+  const [kriseStatus, setKriseStatus] = useState({});
+
+  // Tjek
+  const [tjekÅben, setTjekÅben] = useState(false);
+  const [tjekF, setTjekF] = useState(null); // kun én følelse
+  const [tjekInt, setTjekInt] = useState(5);
+  const [tjekTrang, setTjekTrang] = useState(5);
+  const [tjekNote, setTjekNote] = useState("");
+  const [tjekGemt, setTjekGemt] = useState(false);
+
+  const gemTjek = () => {
+    const fv = GF.find(x => x.id === tjekF);
+    setTjekHist(p => [{
+      id:Date.now(), type:"tjek", dato:dato(),
+      følelse:tjekF, emoji:fv?.emoji, navn:fv?.navn, farve:fv?.farve,
+      intensitet:tjekInt, trang:tjekTrang, note:tjekNote
+    }, ...p].slice(0,50));
+    setTjekGemt(true);
+  };
+
+  const gåTilAnalyseFraFølelsestjek = () => {
+    if (tjekF) {
+      const fv = GF.find(x => x.id === tjekF);
+      setKog(prev => ({...prev, følelse:`${fv.emoji} ${fv.navn} (${tjekInt}/10)`}));
+    }
+    setTjekÅben(false); setTjekGemt(false);
+    setView("kognitiv");
+  };
+
+  // Dagbog
+  const [dagbogId, setDagbogId] = useState(null);
+  const [dagFilter, setDagFilter] = useState("alle");
+
+  // Alarm
+  const [visAlarm, setVisAlarm] = useState(false);
+  const [alarmer, setAlarmer] = useState([{id:1,aktiv:false,tid:"08:00",sat:false},{id:2,aktiv:false,tid:"20:00",sat:false}]);
+
+  // Fare
+  const [fareÅben, setFareÅben] = useState(false);
+
+  // Samtykke-tilbagetrækning bekræftelse
+  const [visTilbageTræk, setVisTilbageTræk] = useState(false);
+
+  useEffect(() => ss("accepteret", accepteret), [accepteret]);
+  useEffect(() => ss("adv", adv), [adv]);
+  useEffect(() => ss("vigtigt", vigtigt), [vigtigt]);
+  useEffect(() => ss("hvadHjælper", hvadHjælper), [hvadHjælper]);
+  useEffect(() => ss("aftale", aftale), [aftale]);
+  useEffect(() => ss("sup", sup), [sup]);
+  useEffect(() => ss("tjekHist", tjekHist), [tjekHist]);
+  useEffect(() => ss("analyseHist", analyseHist), [analyseHist]);
+  useEffect(() => { if (Object.values(kog).some(v => v)) ss("kogDraft", kog); }, [kog]);
+
+  // Luk menu ved klik udenfor
+  useEffect(() => {
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuÅben(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const f = GF.find(x => x.id === valgtF);
+  const aktAlarmer = alarmer.filter(a => a.aktiv).length;
+  const allePoster = [...analyseHist, ...tjekHist].sort((a,b) => b.id - a.id);
+  const filtreret = dagFilter === "alle" ? allePoster : allePoster.filter(p => p.type === dagFilter);
+  const kriseDone = Object.values(kriseStatus).filter(Boolean).length;
+  const harTrinIndhold = Object.values(kog).some(v => v && v.trim().length > 0);
+
+  const updSup = (i, field, v) => setSup(p => { const c=[...p]; c[i]={...c[i],[field]:v}; return c; });
+  const updAdv = (i, v) => setAdv(p => { const c=[...p]; c[i]=v; return c; });
+  const togKrise = (id) => setKriseStatus(p => ({...p,[id]:!p[id]}));
+
+  const updKog = (field, val) => {
+    setKog(prev => {
+      const next = {...prev, [field]: val};
+      if ((field === "tanke" || field === "adfærd") && tjekFare(val)) setFareÅben(true);
       return next;
     });
   };
-  const gåTilAnalyse=()=>{
-    if(valgtF){
-      const fv=GF.find(x=>x.id===valgtF);
-      const tekst=valgtN?fv.navn+" – "+valgtN+" (intensitet: "+int+"/10)":fv.navn+" (intensitet: "+int+"/10)";
-      setKog(prev=>Object.assign({},prev,{følelse:tekst}));
+
+  const rydAnalyse = () => {
+    setKog({situation:"",tanke:"",følelse:"",krop:"",adfærd:"",udfordring:"",handling:""});
+    setAnalyseFase("trin"); setAnalyseRunde(1); setAktivtTrin(null);
+    ss("kogDraft", null);
+  };
+
+  const gemAnalyse = () => {
+    if (!Object.values(kog).some(v => v)) return;
+    setAnalyseHist(p => [{id:Date.now(), type:"analyse", dato:dato(), runde:analyseRunde, indhold:{...kog}}, ...p].slice(0,50));
+    rydAnalyse();
+  };
+
+  const startNyRunde = () => {
+    const gammelHandling = kog.handling;
+    setKog({situation:"",tanke:gammelHandling,følelse:"",krop:"",adfærd:"",udfordring:"",handling:""});
+    setAnalyseFase("trin"); setAnalyseRunde(r => r+1); setAktivtTrin(null);
+  };
+
+  const gåTilAnalyse = () => {
+    if (valgtF) {
+      const fv = GF.find(x => x.id === valgtF);
+      const tekst = valgtN ? `${fv.navn} – ${valgtN} (intensitet: ${int}/10)` : `${fv.navn} (intensitet: ${int}/10)`;
+      setKog(prev => ({...prev, følelse: tekst}));
     }
     setView("kognitiv");
   };
-  const gemAnalyse=()=>{
-    if(!Object.keys(kog).length)return;
-    setAnalyseHist(p=>[{id:Date.now(),type:"analyse",dato:dato(),indhold:Object.assign({},kog)},...p].slice(0,50));
-    setKog({});setAktTrin(null);
-  };
-  const åbnTjek=()=>{setTjekF(null);setTjekInt(5);setTjekNote("");setTjekGemt(false);setTjekÅben(true);};
-  const gemTjek=()=>{
-    const fv=GF.find(x=>x.id===tjekF);
-    setTjekHist(p=>[{id:Date.now(),type:"tjek",dato:dato(),følelse:tjekF,emoji:fv&&fv.emoji,navn:fv&&fv.navn,farve:fv&&fv.farve,intensitet:tjekInt,note:tjekNote},...p].slice(0,50));
-    setTjekGemt(true);
-    setTimeout(()=>{setTjekÅben(false);setTjekGemt(false);},1800);
-  };
-  const togAlarm=(i)=>setAlarmer(p=>p.map((a,j)=>j===i?Object.assign({},a,{aktiv:!a.aktiv,sat:false}):a));
-  const updAlarmTid=(i,t)=>setAlarmer(p=>p.map((a,j)=>j===i?Object.assign({},a,{tid:t,sat:false}):a));
-  const sætAlarm=(i)=>setAlarmer(p=>p.map((a,j)=>j===i?Object.assign({},a,{sat:true}):a));
 
-  const S={
-    root:{minHeight:"100vh",background:"#0b0b1a",color:"#dcdcee",maxWidth:500,margin:"0 auto",paddingBottom:60},
-    hdr:{background:"linear-gradient(160deg,#0f0f28,#161636)",borderBottom:"1px solid #1c1c38",padding:"24px 20px 18px",textAlign:"center"},
-    nav:{display:"flex",background:"#0d0d22",borderBottom:"1px solid #1c1c38",position:"sticky",top:0,zIndex:10},
-    nb:{flex:1,padding:"8px 1px 6px",background:"none",border:"none",color:"#4a4a7a",fontSize:"0.55rem",display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer",borderBottom:"2px solid transparent",minWidth:0},
-    no:{color:"#9B5DE5",borderBottom:"2px solid #9B5DE5"},
-    main:{padding:"20px 16px"},
-    col:{display:"flex",flexDirection:"column",gap:14},
-    lbl:{fontSize:"0.7rem",textTransform:"uppercase",letterSpacing:"0.12em",color:"#5a5a8a"},
-    infoBox:{background:"#12122a",border:"1px solid #1e1e40",borderRadius:12,padding:"16px"},
-    heroCard:{background:"linear-gradient(135deg,#16103a,#1a1050)",border:"1px solid #2a2060",borderRadius:16,padding:"22px"},
-    planSek:{background:"#11112a",border:"1px solid #1e1e40",borderRadius:14,overflow:"hidden"},
-    planHdr:{padding:"16px",display:"flex",alignItems:"flex-start",gap:12,background:"#13132e"},
-    planBody:{padding:"16px",display:"flex",flexDirection:"column",gap:10},
-    planHjælp:{fontSize:"0.84rem",color:"#7070a0",lineHeight:1.65,fontStyle:"italic"},
-    planInput:{flex:1,background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:8,padding:"9px 12px",color:"#dcdcee",fontSize:"0.87rem"},
-    planTA:{background:"#0d0d22",border:"1px solid",borderRadius:8,padding:"12px",color:"#dcdcee",fontSize:"0.87rem",resize:"vertical",width:"100%",lineHeight:1.6},
-    addBtn:{background:"none",border:"1px dashed #2a2a4a",borderRadius:10,color:"#6a6a9a",padding:"10px",width:"100%",cursor:"pointer",fontSize:"0.85rem"},
-    grid2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
-    toolCard:{background:"#12122a",border:"1px solid #1e1e40",borderRadius:14,padding:"16px 12px",display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",color:"#dcdcee",textAlign:"center"},
-    følGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
-    følKort:{background:"#12122a",border:"1px solid",borderRadius:14,padding:"18px 12px",display:"flex",flexDirection:"column",alignItems:"center",gap:6,cursor:"pointer",color:"#dcdcee"},
-    backBtn:{background:"none",border:"1px solid #2a2a4a",color:"#6a6a9a",borderRadius:8,padding:"8px 14px",cursor:"pointer",fontSize:"0.82rem"},
-    trinHdr:{width:"100%",background:"#11112a",border:"1px solid #1e1e40",borderRadius:10,padding:"14px 16px",display:"flex",alignItems:"center",cursor:"pointer",color:"#dcdcee",gap:8},
-    trinBody:{background:"#0e0e25",borderRadius:"0 0 10px 10px",padding:"16px",display:"flex",flexDirection:"column",gap:12,marginTop:-2},
-    sammBox:{border:"1px solid",borderRadius:8,padding:"10px 12px",display:"flex",flexDirection:"column",gap:4},
-    ta:{background:"#12122a",border:"1px solid",borderRadius:8,padding:"12px",color:"#dcdcee",fontSize:"0.87rem",resize:"vertical",width:"100%",lineHeight:1.6},
-    opsumBox:{background:"#0d1f18",border:"1px solid #1a3a28",borderRadius:14,padding:"18px",display:"flex",flexDirection:"column",gap:10},
-    ktHdr:{width:"100%",background:"#141430",border:"1px solid #1e1e40",borderRadius:10,padding:"13px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",color:"#dcdcee",gap:8},
-    ktBox:{width:22,height:22,borderRadius:5,border:"1.5px solid",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0},
-    ktBody:{background:"#0e0e25",borderRadius:"0 0 10px 10px",padding:"14px 16px",display:"flex",flexDirection:"column",gap:10,marginTop:-2},
-    progBar:{background:"#1a1a3a",borderRadius:8,height:28,position:"relative",overflow:"hidden",display:"flex",alignItems:"center"},
-    progFill:{position:"absolute",left:0,top:0,bottom:0,background:"linear-gradient(90deg,#2DC653,#06D6A0)",borderRadius:8,transition:"width 0.4s ease"},
-    dagKort:{width:"100%",background:"#12122a",border:"1px solid #1e1e40",borderRadius:10,padding:"14px 16px",display:"flex",alignItems:"center",cursor:"pointer",color:"#dcdcee",textAlign:"left"},
-    dagBody:{background:"#0e0e25",borderRadius:"0 0 10px 10px",padding:"16px",marginTop:-2,display:"flex",flexDirection:"column",gap:10},
-    supKort:{display:"flex",gap:12,alignItems:"flex-start",background:"#12122a",borderRadius:12,padding:"12px"},
-    inp:{background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:8,padding:"9px 12px",color:"#dcdcee",fontSize:"0.87rem",width:"100%"},
-    hotKort:{background:"#12122a",borderRadius:12,padding:"16px",border:"1px solid #1e1e40"},
-    ringBtn:{display:"block",textAlign:"center",padding:"10px",borderRadius:8,color:"#fff",textDecoration:"none",fontSize:"0.92rem",fontWeight:500},
-    primaryBtn:{border:"none",borderRadius:12,padding:"13px 20px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",width:"100%"},
-    modalBg:{position:"fixed",inset:0,background:"rgba(5,5,18,0.88)",backdropFilter:"blur(4px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100},
-    modalCard:{background:"#12122e",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:500,display:"flex",flexDirection:"column",gap:14,border:"1px solid #2a2a4a",borderBottom:"none"},
-    fareBtn:{display:"block",textAlign:"center",padding:"12px",borderRadius:10,color:"#fff",textDecoration:"none",fontSize:"0.95rem",fontWeight:600},
-    alarmPanel:{background:"#0f1a2a",border:"1px solid #1a3a5a",borderRadius:12,padding:"16px",display:"flex",flexDirection:"column",gap:10},
-    alarmRad:{display:"flex",alignItems:"center",gap:12,background:"#12122a",borderRadius:10,padding:"12px"},
-    alarmToggle:{width:26,height:26,borderRadius:6,border:"1.5px solid",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0},
-    alarmInput:{background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:6,padding:"6px 10px",color:"#dcdcee",fontSize:"0.95rem",width:"100%",colorScheme:"dark"},
+  const åbnTjek = () => { setTjekF(null); setTjekInt(5); setTjekTrang(5); setTjekNote(""); setTjekGemt(false); setTjekÅben(true); };
+
+  // Følelse-vælger i analyse
+  const [vælgerÅben, setVælgerÅben] = useState(false);
+  const [vælgerFølelser, setVælgerFølelser] = useState({});
+  const [vælgerRækkefølge, setVælgerRækkefølge] = useState([]);
+  const [vælgerÅbenNuance, setVælgerÅbenNuance] = useState(null);
+
+  const togVælger = (id) => {
+    setVælgerFølelser(prev => {
+      const kopi = Object.assign({}, prev);
+      if (kopi[id] !== undefined) {
+        delete kopi[id];
+        setVælgerRækkefølge(r => r.filter(x => x !== id));
+      } else {
+        kopi[id] = {intensitet:5, nuance:null};
+        setVælgerRækkefølge(r => [...r, id]);
+      }
+      return kopi;
+    });
   };
+  const updVælgerInt = (id, val) => setVælgerFølelser(prev => ({
+    ...prev, [id]: {...prev[id], intensitet:val}
+  }));
+  const updVælgerNuance = (id, nuance) => setVælgerFølelser(prev => ({
+    ...prev, [id]: {...prev[id], nuance}
+  }));
 
-  return(
-    <div style={S.root}>
+  const bekræftVælger = () => {
+    const entries = Object.entries(vælgerFølelser);
+    if (!entries.length) return;
+    const maxInt = Math.max(...entries.map(([,v]) => v.intensitet));
+    const tekst = entries
+      .filter(([,v]) => v.intensitet > 2)
+      .sort((a,b) => b[1].intensitet - a[1].intensitet)
+      .map(([id,v]) => {
+        const fv = GF.find(x=>x.id===id);
+        const label = v.nuance ? `${fv.navn} – ${v.nuance}` : fv.navn;
+        return `${fv.emoji} ${label} (${v.intensitet}/10)`;
+      }).join(", ");
+    if (tekst) updKog("følelse", tekst);
+    setVælgerÅben(false);
+    setVælgerÅbenNuance(null);
+  };
+  const updAlarmTid = (i, t) => setAlarmer(p => p.map((a,j) => j===i ? {...a,tid:t,sat:false} : a));
+  const sætAlarm = (i) => setAlarmer(p => p.map((a,j) => j===i ? {...a,sat:true} : a));
 
-      {fareÅben&&(
-        <div style={S.modalBg} className="modal-bg">
-          <div style={Object.assign({},S.modalCard,{borderTop:"3px solid #E63946"})} className="modal-card">
-            <div style={{textAlign:"center",padding:"8px 0 4px"}}>
+  const navItems = [
+    {id:"home",l:"Hjem",sym:"⬡"},
+    {id:"kriseplan",l:"Kriseplan",sym:"🛡"},
+    {id:"følelser",l:"Følelser",sym:"🌊"},
+    {id:"kognitiv",l:"Analyser",sym:"⟳"},
+    {id:"dagbog",l:"Dagbog",sym:"📖"},
+    {id:"støtte",l:"Støtte",sym:"◈"},
+  ];
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0;}
+    button:focus,input:focus,textarea:focus{outline:none;}
+    input::placeholder,textarea::placeholder{color:#4a4a6a;}
+    ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:#1e1e40;border-radius:4px;}
+    input,textarea{font-family:'DM Sans',sans-serif;}
+    .sin{animation:si .28s ease-out;}
+    @keyframes si{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+    .fade{animation:fd .2s ease-out;}
+    @keyframes fd{from{opacity:0;}to{opacity:1;}}
+    .modal-bg{animation:mb .2s ease-out;}
+    @keyframes mb{from{opacity:0;}to{opacity:1;}}
+    .modal-card{animation:mc .25s cubic-bezier(.34,1.56,.64,1);}
+    @keyframes mc{from{opacity:0;transform:translateY(30px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+    .bounce{animation:bn .5s ease;}
+    @keyframes bn{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+    .dropdown{animation:dd .2s ease-out;}
+    @keyframes dd{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+  `;
+
+  // ── VELKOMST ────────────────────────────────────────────────────────────────
+  if (!accepteret) return (
+    <div style={s.root}>
+      <style>{css}</style>
+      <div style={s.welcomeWrap}>
+        <div style={s.welcomeCard}>
+          <div style={{textAlign:"center",marginBottom:20}}>
+            <div style={{width:60,height:60,borderRadius:"50%",background:"#9B5DE5",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:"1.8rem"}}>◎</div>
+            <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.6rem",color:"#f0f0ff",marginBottom:6}}>Min Kriseplan</p>
+            <p style={{fontSize:"0.78rem",color:"#5a5a8a",letterSpacing:"0.06em"}}>Kognitiv selvhjælpsapp</p>
+          </div>
+          {[
+            {title:"Hvad er denne app?", text:"Min Kriseplan er en selvhjælpsapp baseret på kognitiv tilgang. Den hjælper dig med at blive opmærksom på dine tanker, følelser, kropslige reaktioner og handlinger i forbindelse med rusmiddelproblematik.", col:null},
+            {title:"Sådan kan appen bruges", text:"Appen kan bruges individuelt som et personligt redskab, eller som supplement i behandling hos en professionel behandler. Al indhold kommer udelukkende fra dig selv.", col:null},
+            {title:"⚠️ Vigtig information", text:"Denne app erstatter ikke professionel behandling eller rådgivning. Faredetekteringen er et supplement og ikke en garanti. Søg altid professionel hjælp ved behov.", col:"#E63946"},
+          ].map((b,i) => (
+            <div key={i} style={{...s.welcomeBox, ...(b.col?{borderColor:b.col,background:b.col+"10"}:{})}}>
+              <p style={{...s.welcomeTitle,...(b.col?{color:b.col}:{})}}>{b.title}</p>
+              <p style={s.welcomeText}>{b.text}</p>
+            </div>
+          ))}
+          <button style={s.acceptBtn} onClick={() => setAccepteret(true)}>
+            Jeg forstår og accepterer – start appen →
+          </button>
+          <p style={{fontSize:"0.7rem",color:"#3a3a5a",textAlign:"center",marginTop:4}}>© Jannick Sørensen 2026</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={s.root}>
+      <style>{css}</style>
+
+      {/* FARE MODAL */}
+      {fareÅben && (
+        <div style={s.modalBg} className="modal-bg">
+          <div style={{...s.modalCard,borderTop:"3px solid #E63946"}} className="modal-card">
+            <div style={{textAlign:"center",padding:"4px 0"}}>
               <p style={{fontSize:"2rem",marginBottom:8}}>🆘</p>
               <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.2rem",color:"#E63946",marginBottom:8}}>Vi er bekymrede for dig</p>
-              <p style={{fontSize:"0.87rem",color:"#b0b0cc",lineHeight:1.65,marginBottom:16}}>
-                Det du har skrevet tyder på at du har det meget svært og måske overvejer at gøre dig selv eller andre skade. Du fortjener hjælp – ring nu.
-              </p>
+              <p style={{fontSize:"0.87rem",color:"#b0b0cc",lineHeight:1.65,marginBottom:16}}>Det du har skrevet tyder på at du har det meget svært. Ring til en af nedenstående nu.</p>
             </div>
-            <a href="tel:70201201" style={Object.assign({},S.fareBtn,{background:"#4895EF"})}>📞 Livslinjen – 70 201 201 – døgnet rundt</a>
-            <a href="tel:82121212" style={Object.assign({},S.fareBtn,{background:"#E63946"})}>☎️ Giftlinjen – 82 12 12 12 – overdosis/forgiftning</a>
-            <a href="tel:80200500" style={Object.assign({},S.fareBtn,{background:"#F4A261",color:"#1a1a2a"})}>📞 Alkolinjen (alkohol) – 80 200 500</a>
-            <a href="sms:1899" style={Object.assign({},S.fareBtn,{background:"#9B5DE5"})}>💬 SMS-rådgivning – 1899</a>
-            <a href="tel:1813" style={Object.assign({},S.fareBtn,{background:"#c1121f"})}>🏥 1813 – Lægevagt</a>
-            <a href="tel:112" style={Object.assign({},S.fareBtn,{background:"#9B0000"})}>🚨 112 – Livstruende nødsituation</a>
-            <p style={{fontSize:"0.75rem",color:"#5a5a8a",textAlign:"center",fontStyle:"italic"}}>Du er ikke alene. Det er okay at bede om hjælp.</p>
-            <button style={{background:"none",border:"1px solid #2a2a4a",borderRadius:8,padding:"10px",color:"#6a6a9a",fontSize:"0.85rem",cursor:"pointer"}}
-              onClick={()=>setFareÅben(false)}>Luk og fortsæt</button>
+            {[
+              {href:"tel:70201201",bg:"#4895EF",txt:"📞 Livslinjen – 70 201 201 – døgnet rundt"},
+              {href:"tel:82121212",bg:"#E63946",txt:"☎️ Giftlinjen – 82 12 12 12 – overdosis/forgiftning"},
+              {href:"tel:80200500",bg:"#F4A261",col:"#1a1a2a",txt:"📞 Alkolinjen – 80 200 500"},
+              {href:"sms:1899",bg:"#9B5DE5",txt:"💬 SMS-rådgivning – 1899"},
+              {href:"tel:1813",bg:"#c1121f",txt:"🏥 1813 – Lægevagt"},
+              {href:"tel:112",bg:"#9B0000",txt:"🚨 112 – Livstruende nødsituation"},
+            ].map(b => (
+              <a key={b.href} href={b.href} style={{display:"block",textAlign:"center",padding:"11px",borderRadius:10,color:b.col||"#fff",textDecoration:"none",fontSize:"0.9rem",fontWeight:600,background:b.bg}}>{b.txt}</a>
+            ))}
+            <p style={{fontSize:"0.73rem",color:"#5a5a8a",textAlign:"center",fontStyle:"italic"}}>Du er ikke alene. Det er okay at bede om hjælp.</p>
+            <button style={{background:"none",border:"1px solid #2a2a4a",borderRadius:8,padding:"10px",color:"#6a6a9a",fontSize:"0.85rem",cursor:"pointer"}} onClick={() => setFareÅben(false)}>Luk og fortsæt</button>
           </div>
         </div>
       )}
 
-      {tjekÅben&&(
-        <div style={S.modalBg} className="modal-bg" onClick={function(e){if(e.target===e.currentTarget)setTjekÅben(false);}}>
-          <div style={S.modalCard} className="modal-card">
-            {!tjekGemt?React.createElement(React.Fragment,null,
-              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12}},
-                React.createElement("span",{style:{fontSize:"1.5rem",color:"#4895EF"}},"◌"),
-                React.createElement("div",{style:{flex:1}},
-                  React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.2rem",color:"#f0f0ff"}},"Følelsestjek"),
-                  React.createElement("p",{style:{fontSize:"0.78rem",color:"#6a6a9a"}},"Stop op – hvad mærker du lige nu?")
-                ),
-                React.createElement("button",{style:{background:"none",border:"none",color:"#5a5a7a",fontSize:"1.1rem",cursor:"pointer"},onClick:()=>setTjekÅben(false)},"✕")
-              ),
-              React.createElement("p",{style:S.lbl},"Vælg din dominerende følelse"),
-              React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}},
-                GF.map(function(fv){
-                  return React.createElement("button",{key:fv.id,
-                    style:{borderRadius:10,padding:"10px 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",
-                      background:tjekF===fv.id?fv.farve+"30":"transparent",border:"1px solid "+(tjekF===fv.id?fv.farve:"#2a2a4a")},
-                    onClick:function(){setTjekF(fv.id);}},
-                    React.createElement("span",{style:{fontSize:"1.4rem"}},fv.emoji),
-                    React.createElement("span",{style:{fontSize:"0.73rem",color:tjekF===fv.id?fv.farve:"#7070a0"}},fv.navn)
-                  );
-                })
-              ),
-              tjekF&&React.createElement("div",{className:"fade"},
-                React.createElement("p",{style:{fontSize:"0.9rem",marginBottom:8,color:"#c0c0d8"}},
-                  "Intensitet: ",React.createElement("strong",{style:{color:(GF.find(function(x){return x.id===tjekF;})||{}).farve}},tjekInt+"/10")
-                ),
-                React.createElement("input",{type:"range",min:1,max:10,value:tjekInt,
-                  onChange:function(e){setTjekInt(Number(e.target.value));},
-                  style:{width:"100%",accentColor:(GF.find(function(x){return x.id===tjekF;})||{}).farve,cursor:"pointer",marginBottom:12}}),
-                React.createElement("textarea",{style:{background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:8,padding:"10px",color:"#dcdcee",fontSize:"0.87rem",resize:"none",width:"100%"},
-                  rows:2,placeholder:"Notér kort hvad der rør sig… (valgfrit)",value:tjekNote,onChange:function(e){setTjekNote(e.target.value);}}),
-                React.createElement("button",{style:{background:"#9B5DE5",border:"none",borderRadius:10,padding:"12px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",width:"100%",marginTop:4},onClick:gemTjek},"Gem tjek ✓")
-              ),
-              !tjekF&&React.createElement("p",{style:{fontSize:"0.78rem",color:"#4a4a6a",textAlign:"center"}},"Vælg en følelse for at fortsætte")
-            ):(
-              React.createElement("div",{style:{textAlign:"center",padding:"32px 20px"},className:"bounce"},
-                React.createElement("p",{style:{fontSize:"2.5rem",marginBottom:12}},"✓"),
-                React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.2rem",color:"#06D6A0"}},"Gemt i dagbogen!"),
-                React.createElement("p",{style:{fontSize:"0.85rem",color:"#6a6a9a",marginTop:6}},"Du stoppede op og mærkede dig selv.")
-              )
+      {/* TJEK MODAL */}
+      {tjekÅben && (
+        <div style={s.modalBg} className="modal-bg" onClick={e => { if (e.target===e.currentTarget) setTjekÅben(false); }}>
+          <div style={{...s.modalCard,maxHeight:"90vh",overflowY:"auto"}} className="modal-card">
+            {!tjekGemt ? <>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:"1.5rem"}}>🌊</span>
+                <div style={{flex:1}}>
+                  <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.2rem",color:"#f0f0ff"}}>Følelsestjek</p>
+                  <p style={{fontSize:"0.78rem",color:"#6a6a9a"}}>Stop op – hvad mærker du lige nu?</p>
+                </div>
+                <button style={{background:"none",border:"none",color:"#5a5a7a",fontSize:"1.1rem",cursor:"pointer"}} onClick={() => setTjekÅben(false)}>✕</button>
+              </div>
+
+              <p style={s.lbl}>Vælg din dominerende følelse</p>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                {GF.map(fv => (
+                  <button key={fv.id} style={{borderRadius:10,padding:"10px 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",
+                    background:tjekF===fv.id?fv.farve+"30":"transparent",border:`1px solid ${tjekF===fv.id?fv.farve:"#2a2a4a"}`}}
+                    onClick={() => setTjekF(fv.id)}>
+                    <span style={{fontSize:"1.4rem"}}>{fv.emoji}</span>
+                    <span style={{fontSize:"0.73rem",color:tjekF===fv.id?fv.farve:"#7070a0"}}>{fv.navn}</span>
+                  </button>
+                ))}
+              </div>
+
+              {tjekF && <div>
+                <p style={{fontSize:"0.88rem",marginBottom:6,color:"#c0c0d8"}}>
+                  Intensitet: <strong style={{color:GF.find(x=>x.id===tjekF)?.farve}}>{tjekInt}/10</strong>
+                </p>
+                <input type="range" min={1} max={10} value={tjekInt}
+                  onChange={e => setTjekInt(Number(e.target.value))}
+                  style={{width:"100%",accentColor:GF.find(x=>x.id===tjekF)?.farve,cursor:"pointer",marginBottom:14}}/>
+                <p style={{fontSize:"0.88rem",marginBottom:6,color:"#c0c0d8"}}>Trang: <strong style={{color:"#E63946"}}>{tjekTrang}/10</strong></p>
+                <input type="range" min={1} max={10} value={tjekTrang} onChange={e => setTjekTrang(Number(e.target.value))}
+                  style={{width:"100%",accentColor:"#E63946",cursor:"pointer",marginBottom:4}}/>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.68rem",color:"#5a5a8a",marginBottom:12}}><span>Ingen trang</span><span>Meget stærk</span></div>
+                <textarea style={s.modalTA} rows={2} placeholder="Notér kort hvad der rør sig… (valgfrit)" value={tjekNote} onChange={e => setTjekNote(e.target.value)}/>
+                <button style={s.modalGemBtn} onClick={gemTjek}>Gem tjek ✓</button>
+              </div>}
+
+              {!tjekF && <p style={{fontSize:"0.78rem",color:"#4a4a6a",textAlign:"center"}}>Vælg en følelse for at fortsætte</p>}
+
+            </> : (
+              <div style={{padding:"20px 4px",display:"flex",flexDirection:"column",gap:16}} className="fade">
+                <div style={{textAlign:"center"}}>
+                  <p style={{fontSize:"2rem",marginBottom:8}}>✓</p>
+                  <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#06D6A0"}}>Gemt i dagbogen!</p>
+                </div>
+                <div style={{background:"#0d0d22",borderRadius:12,padding:"16px",border:"1px solid #1e1e40"}}>
+                  <p style={{fontSize:"0.9rem",color:"#c0c0d8",marginBottom:14,textAlign:"center"}}>Har du lyst til at undersøge følelsen nærmere?</p>
+                  <div style={{display:"flex",gap:10}}>
+                    <button style={{flex:1,background:"#9B5DE5",border:"none",borderRadius:10,padding:"11px",color:"#fff",fontSize:"0.88rem",cursor:"pointer"}}
+                      onClick={gåTilAnalyseFraFølelsestjek}>
+                      Ja – analyser følelsen
+                    </button>
+                    <button style={{flex:1,background:"#1a1a3a",border:"1px solid #2a2a4a",borderRadius:10,padding:"11px",color:"#8080a0",fontSize:"0.88rem",cursor:"pointer"}}
+                      onClick={() => { setTjekÅben(false); setTjekGemt(false); }}>
+                      Nej tak
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
       )}
 
-      <header style={S.hdr}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:6}}>
-          <div style={{width:10,height:10,borderRadius:"50%",background:"#9B5DE5"}}/>
-          <span style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.6rem",color:"#f0f0ff",letterSpacing:"0.02em"}}>Min Kriseplan</span>
+      {/* FØLELSE-VÆLGER MODAL */}
+      {vælgerÅben && (
+        <div style={s.modalBg} className="modal-bg" onClick={e=>{if(e.target===e.currentTarget){setVælgerÅben(false);setVælgerÅbenNuance(null);}}}>
+          <div style={{...s.modalCard,maxHeight:"90vh",overflowY:"auto"}} className="modal-card">
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span style={{fontSize:"1.5rem"}}>🌊</span>
+              <div style={{flex:1}}>
+                <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#f0f0ff"}}>Vælg følelser</p>
+                <p style={{fontSize:"0.78rem",color:"#6a6a9a"}}>Vælg én eller flere – tryk igen for at fravælge</p>
+              </div>
+              <button style={{background:"none",border:"none",color:"#5a5a7a",fontSize:"1.1rem",cursor:"pointer"}} onClick={()=>{setVælgerÅben(false);setVælgerÅbenNuance(null);}}>✕</button>
+            </div>
+
+            {/* Grundfølelser grid */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+              {GF.map(fv => {
+                const valgt = vælgerFølelser[fv.id] !== undefined;
+                const data = vælgerFølelser[fv.id];
+                return (
+                  <button key={fv.id} style={{borderRadius:10,padding:"10px 6px",display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer",
+                    background:valgt?fv.farve+"30":"transparent",border:`1px solid ${valgt?fv.farve:"#2a2a4a"}`}}
+                    onClick={() => togVælger(fv.id)}>
+                    <span style={{fontSize:"1.4rem"}}>{fv.emoji}</span>
+                    <span style={{fontSize:"0.73rem",color:valgt?fv.farve:"#7070a0"}}>{fv.navn}</span>
+                    {valgt && <span style={{fontSize:"0.62rem",color:fv.farve,fontWeight:600}}>
+                      {data.nuance || "Grundfølelse"} · {data.intensitet}/10
+                    </span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Uddybning af valgte følelser */}
+            {Object.keys(vælgerFølelser).length > 0 && (
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <p style={{fontSize:"0.7rem",textTransform:"uppercase",letterSpacing:"0.1em",color:"#5a5a8a"}}>Uddyb dine valgte følelser</p>
+                {vælgerRækkefølge
+                  .filter(id => vælgerFølelser[id])
+                  .map(id => {
+                    const data = vælgerFølelser[id];
+                    const fv = GF.find(x=>x.id===id);
+                    const maxI = Math.max(...Object.values(vælgerFølelser).map(v=>v.intensitet));
+                    const erHøjest = data.intensitet === maxI;
+                    const nuanceÅben = vælgerÅbenNuance === id;
+                    return (
+                      <div key={id} style={{background:erHøjest?fv.farve+"15":"#0d0d22",borderRadius:12,padding:"12px",border:`1px solid ${erHøjest?fv.farve+"50":"#1e1e40"}`,opacity:erHøjest?1:0.8}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                          <span style={{fontSize:"1.1rem"}}>{fv.emoji}</span>
+                          <span style={{fontSize:"0.88rem",color:fv.farve,fontWeight:600}}>{fv.navn}</span>
+                          {erHøjest && <span style={{fontSize:"0.62rem",color:fv.farve,background:fv.farve+"20",padding:"2px 6px",borderRadius:10}}>Højest</span>}
+                          <span style={{marginLeft:"auto",fontSize:"0.88rem",color:fv.farve,fontWeight:700}}>{data.intensitet}/10</span>
+                        </div>
+                        {/* Intensitetsskyder */}
+                        <input type="range" min={1} max={10} value={data.intensitet}
+                          onChange={e => updVælgerInt(id, Number(e.target.value))}
+                          style={{width:"100%",accentColor:fv.farve,cursor:"pointer",marginBottom:8}}/>
+                        {/* Nuance valg */}
+                        <button style={{background:"none",border:`1px solid ${fv.farve}40`,borderRadius:8,padding:"6px 10px",color:fv.farve,fontSize:"0.75rem",cursor:"pointer",width:"100%",textAlign:"left"}}
+                          onClick={() => setVælgerÅbenNuance(nuanceÅben ? null : id)}>
+                          {data.nuance ? `Nuance: ${data.nuance}` : "Vælg nuance (valgfrit)"} {nuanceÅben?"▲":"▼"}
+                        </button>
+                        {nuanceÅben && (
+                          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}} className="fade">
+                            <button style={{border:`1px solid ${fv.farve}`,borderRadius:16,padding:"5px 10px",fontSize:"0.75rem",cursor:"pointer",
+                              background:data.nuance===null?fv.farve:"transparent",color:data.nuance===null?"#fff":fv.farve}}
+                              onClick={() => { updVælgerNuance(id, null); setVælgerÅbenNuance(null); }}>
+                              Kun grundfølelse
+                            </button>
+                            {fv.nuancer.map(n => (
+                              <button key={n} style={{border:`1px solid ${fv.farve}`,borderRadius:16,padding:"5px 10px",fontSize:"0.75rem",cursor:"pointer",
+                                background:data.nuance===n?fv.farve:"transparent",color:data.nuance===n?"#fff":fv.farve}}
+                                onClick={() => { updVælgerNuance(id, n); setVælgerÅbenNuance(null); }}>
+                                {n}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                <button style={{background:"#9B5DE5",border:"none",borderRadius:10,padding:"12px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",width:"100%"}}
+                  onClick={bekræftVælger}>Tilføj til analysen ✓</button>
+              </div>
+            )}
+            {Object.keys(vælgerFølelser).length===0 && <p style={{fontSize:"0.78rem",color:"#4a4a6a",textAlign:"center"}}>Vælg mindst én følelse</p>}
+          </div>
         </div>
-        <p style={{fontSize:"0.76rem",color:"#5a5a8a",letterSpacing:"0.06em"}}>Kognitiv tilgang til rusmiddelproblematik</p>
+      )}
+
+
+      {visTilbageTræk && (
+        <div style={s.modalBg} className="modal-bg">
+          <div style={{...s.modalCard,borderTop:"3px solid #E63946"}} className="modal-card">
+            <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.2rem",color:"#E63946"}}>Træk samtykke tilbage?</p>
+            <p style={{fontSize:"0.87rem",color:"#b0b0cc",lineHeight:1.65}}>Hvis du trækker dit samtykke tilbage, låses appen og du kan ikke bruge den igen før du accepterer vilkårene på ny. Dine gemte data forbliver på enheden.</p>
+            <button style={{background:"#E63946",border:"none",borderRadius:10,padding:"12px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",width:"100%"}}
+              onClick={() => { setAccepteret(false); setVisTilbageTræk(false); setMenuÅben(false); }}>
+              Ja – træk samtykke tilbage
+            </button>
+            <button style={{background:"none",border:"1px solid #2a2a4a",borderRadius:10,padding:"12px",color:"#6a6a9a",fontSize:"0.92rem",cursor:"pointer"}}
+              onClick={() => setVisTilbageTræk(false)}>
+              Annuller
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MENU OVERLAY */}
+      {menuÅben && !menuSektion && (
+        <div style={s.menuOverlay} className="modal-bg" onClick={() => setMenuÅben(false)}>
+          <div style={s.menuPanel} ref={menuRef} className="dropdown" onClick={e => e.stopPropagation()}>
+            <div style={s.menuHeader}>
+              <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#f0f0ff"}}>Menu</p>
+              <button style={{background:"none",border:"none",color:"#5a5a7a",fontSize:"1.2rem",cursor:"pointer"}} onClick={() => setMenuÅben(false)}>✕</button>
+            </div>
+            {MENU_SEKTIONER.map(sek => (
+              <button key={sek.id} style={s.menuItem} onClick={() => setMenuSektion(sek.id)}>
+                <span style={{fontSize:"1.2rem"}}>{sek.emoji}</span>
+                <span style={{flex:1,textAlign:"left",fontSize:"0.92rem",color:"#dcdcee"}}>{sek.titel}</span>
+                <span style={{color:"#3a3a6a"}}>›</span>
+              </button>
+            ))}
+            <div style={{borderTop:"1px solid #1e1e40",marginTop:8,paddingTop:8}}>
+              <button style={{...s.menuItem,color:"#E63946"}} onClick={() => { setVisTilbageTræk(true); }}>
+                <span style={{fontSize:"1.2rem"}}>🔒</span>
+                <span style={{flex:1,textAlign:"left",fontSize:"0.87rem",color:"#E63946"}}>Træk samtykke tilbage</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MENU SEKTION */}
+      {menuÅben && menuSektion && (
+        <div style={s.menuOverlay} className="modal-bg" onClick={() => { setMenuSektion(null); setMenuÅben(false); }}>
+          <div style={{...s.menuPanel,maxHeight:"85vh",overflowY:"auto"}} onClick={e => e.stopPropagation()} className="dropdown">
+            <div style={s.menuHeader}>
+              <button style={{background:"none",border:"none",color:"#6a6a9a",fontSize:"0.85rem",cursor:"pointer",padding:0}} onClick={() => setMenuSektion(null)}>← Tilbage</button>
+              <button style={{background:"none",border:"none",color:"#5a5a7a",fontSize:"1.2rem",cursor:"pointer"}} onClick={() => { setMenuSektion(null); setMenuÅben(false); }}>✕</button>
+            </div>
+            {(() => {
+              const sek = MENU_SEKTIONER.find(m => m.id === menuSektion);
+              return (
+                <div style={{display:"flex",flexDirection:"column",gap:16,padding:"4px 0"}}>
+                  <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.2rem",color:"#f0f0ff"}}>{sek.emoji} {sek.titel}</p>
+                  {sek.afsnit.map((a,i) => (
+                    <div key={i} style={{background:"#0d0d22",borderRadius:12,padding:"14px",borderLeft:`3px solid ${a.farve||"#9B5DE5"}`}}>
+                      <p style={{fontSize:"0.75rem",color:a.farve||"#9B5DE5",textTransform:"uppercase",letterSpacing:"0.08em",fontWeight:600,marginBottom:8}}>{a.titel}</p>
+                      {a.tekst.split("\n\n").map((afsnit,j) => (
+                        <p key={j} style={{fontSize:"0.87rem",color:"#9090b0",lineHeight:1.7,marginBottom:j<a.tekst.split("\n\n").length-1?8:0}}>{afsnit}</p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* HEADER */}
+      <header style={s.header}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",maxWidth:500,margin:"0 auto"}}>
+          <div style={{width:36}}/>
+          <div style={{textAlign:"center"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:4}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:"#9B5DE5"}}/>
+              <span style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#f0f0ff",letterSpacing:"0.02em"}}>Min Kriseplan</span>
+            </div>
+            <p style={{fontSize:"0.72rem",color:"#5a5a8a",letterSpacing:"0.06em"}}>Kognitiv selvhjælpsapp</p>
+          </div>
+          <button style={{width:36,height:36,background:"#1a1a3a",border:"1px solid #2a2a4a",borderRadius:8,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4}}
+            onClick={() => { setMenuSektion(null); setMenuÅben(v => !v); }}>
+            <span style={{display:"block",width:14,height:1.5,background:"#8080a0",borderRadius:2}}/>
+            <span style={{display:"block",width:14,height:1.5,background:"#8080a0",borderRadius:2}}/>
+            <span style={{display:"block",width:14,height:1.5,background:"#8080a0",borderRadius:2}}/>
+          </button>
+        </div>
       </header>
 
-      <nav style={S.nav}>
-        {[{id:"home",l:"Hjem",s:"⬡"},{id:"kriseplan",l:"Kriseplan",s:"🛡"},{id:"følelser",l:"Følelser",s:"◌"},{id:"kognitiv",l:"Analyser",s:"⟳"},{id:"dagbog",l:"Dagbog",s:"📖"},{id:"støtte",l:"Støtte",s:"◈"}].map(function(n){
-          return React.createElement("button",{key:n.id,style:Object.assign({},S.nb,view===n.id?S.no:{}),onClick:function(){setView(n.id);}},
-            React.createElement("span",{style:{fontSize:"0.9rem"}},n.s),
-            React.createElement("span",null,n.l)
-          );
-        })}
+      {/* NAV */}
+      <nav style={s.nav}>
+        {navItems.map(n => (
+          <button key={n.id} style={{...s.navBtn,...(view===n.id?s.navOn:{})}} onClick={() => setView(n.id)}>
+            <span style={{fontSize:"0.9rem"}}>{n.sym}</span>
+            <span>{n.l}</span>
+          </button>
+        ))}
       </nav>
 
-      <main style={S.main} className="sin" key={view}>
+      <main style={s.main} className="sin" key={view}>
 
-        {view==="home"&&React.createElement("div",{style:S.col},
-          React.createElement("div",{style:{background:"linear-gradient(135deg,#0f1a2a,#0a1828)",border:"1px solid #1a3a5a",borderRadius:14,padding:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}},
-            React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10}},
-              React.createElement("span",{style:{fontSize:"1.4rem",color:"#4895EF"}},"◌"),
-              React.createElement("div",null,
-                React.createElement("p",{style:{fontSize:"0.95rem",fontWeight:500,color:"#c0d8f0",marginBottom:2}},"Følelsestjek"),
-                React.createElement("p",{style:{fontSize:"0.75rem",color:aktAlarmer>0?"#4895EF":"#5a7a9a"}},
-                  aktAlarmer>0?"🔔 "+aktAlarmer+" påmindelse"+(aktAlarmer>1?"r":"")+" aktiv":"Stop op og mærk dig selv"
-                )
-              )
-            ),
-            React.createElement("div",{style:{display:"flex",gap:8}},
-              React.createElement("button",{style:{border:"none",borderRadius:8,padding:"9px 11px",color:"#fff",fontSize:"1.1rem",cursor:"pointer",background:"#1a1a40"},title:"Påmindelser",onClick:function(){setVisAlarm(function(v){return !v;})}},"🔔"),
-              React.createElement("button",{style:{border:"none",borderRadius:8,padding:"9px 14px",color:"#fff",fontSize:"0.82rem",cursor:"pointer",background:"#9B5DE5"},onClick:åbnTjek},"Start tjek")
-            )
-          ),
-          visAlarm&&React.createElement("div",{style:S.alarmPanel,className:"fade"},
-            React.createElement("p",{style:Object.assign({},S.lbl,{marginBottom:4})},"🔔 Daglige påmindelser"),
-            React.createElement("p",{style:{fontSize:"0.78rem",color:"#5a5a8a",marginBottom:8}},"Vælg 0–2 tidspunkter for dit daglige følelsestjek"),
-            alarmer.map(function(a,i){
-              return React.createElement("div",{key:a.id,style:S.alarmRad},
-                React.createElement("button",{style:Object.assign({},S.alarmToggle,{background:a.aktiv?"#9B5DE5":"transparent",borderColor:a.aktiv?"#9B5DE5":"#3a3a5a"}),onClick:function(){togAlarm(i);}},
-                  a.aktiv&&React.createElement("span",{style:{color:"#fff",fontSize:"0.8rem"}},"✓")
-                ),
-                React.createElement("div",{style:{flex:1}},
-                  React.createElement("p",{style:{fontSize:"0.82rem",color:a.aktiv?"#c0c0e0":"#5a5a8a",marginBottom:4}},"Påmindelse "+(i+1)),
-                  React.createElement("input",{type:"time",value:a.tid,disabled:!a.aktiv,onChange:function(e){updAlarmTid(i,e.target.value);},style:Object.assign({},S.alarmInput,{opacity:a.aktiv?1:0.4})})
-                ),
-                a.aktiv&&React.createElement("button",{style:{border:"none",borderRadius:8,padding:"8px 12px",color:"#fff",fontSize:"0.78rem",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,background:a.sat?"#2DC653":"#9B5DE5"},onClick:function(){sætAlarm(i);}},a.sat?"✓ Sat":"Sæt alarm")
-              );
-            }),
-            React.createElement("p",{style:{fontSize:"0.72rem",color:"#4a4a6a",fontStyle:"italic"}},"Alarmen sættes i din telefons urapp og minder dig om et følelsestjek.")
-          ),
-          React.createElement("div",{style:S.heroCard},
-            React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.25rem",color:"#f0f0ff",marginBottom:8}},"Har du det svært lige nu?"),
-            React.createElement("p",{style:{fontSize:"0.86rem",color:"#8888aa",lineHeight:1.65,marginBottom:16}},"Start med at navngive følelsen – eller gå direkte til din kriseplan."),
-            React.createElement("div",{style:{display:"flex",gap:10}},
-              React.createElement("button",{style:{flex:1,border:"none",borderRadius:10,padding:"12px 16px",color:"#fff",fontSize:"0.88rem",cursor:"pointer",background:"#9B5DE5"},onClick:function(){setView("følelser");}},"Navngiv følelse"),
-              React.createElement("button",{style:{flex:1,border:"none",borderRadius:10,padding:"12px 16px",color:"#fff",fontSize:"0.88rem",cursor:"pointer",background:"#E63946"},onClick:function(){setView("kriseplan");}},"Kriseplan →")
-            )
-          ),
-          React.createElement("p",{style:S.lbl},"Hvad er kognitiv tilgang?"),
-          React.createElement("div",{style:S.infoBox},
-            React.createElement("p",{style:{fontSize:"0.87rem",color:"#8888aa",lineHeight:1.7}},
-              "Kognitive metoder bygger på idéen om at ",
-              React.createElement("span",{style:{color:"#9B5DE5",fontWeight:500}},"tanker → følelser → krop → adfærd"),
-              " hænger uløseligt sammen og påvirker hinanden. Når vi genkender automatiske tanker, kan vi udfordre dem – og vælge en anden vej."
-            ),
-            React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:5,marginTop:12,alignItems:"center"}},
-              ["Situation","→","Tanke","→","Følelse","→","Krop","→","Adfærd"].map(function(t,i){
-                return React.createElement("span",{key:i,style:t==="→"?{color:"#3a3a6a",fontSize:"0.8rem"}:{background:"#1e1e40",borderRadius:20,padding:"4px 10px",fontSize:"0.74rem",color:"#8080b8"}},t);
-              })
-            )
-          ),
-          React.createElement("p",{style:S.lbl},"Dine værktøjer"),
-          React.createElement("div",{style:S.grid2},
-            [{l:"Min kriseplan",sub:"Din personlige plan",s:"🛡",c:"#E63946",t:"kriseplan"},
-             {l:"6 grundfølelser",sub:"Navngiv hvad du mærker",s:"◌",c:"#9B5DE5",t:"følelser"},
-             {l:"Analyser tanken",sub:"7-trins kognitiv analyse",s:"⟳",c:"#4895EF",t:"kognitiv"},
-             {l:"Dagbog",sub:"Dine tidligere registreringer",s:"📖",c:"#F4A261",t:"dagbog"}
-            ].map(function(c){
-              return React.createElement("button",{key:c.l,style:Object.assign({},S.toolCard,{borderTop:"3px solid "+c.c}),onClick:function(){setView(c.t);}},
-                React.createElement("span",{style:{fontSize:"1.3rem",color:c.c}},c.s),
-                React.createElement("span",{style:{fontSize:"0.87rem",fontWeight:500}},c.l),
-                React.createElement("span",{style:{fontSize:"0.71rem",color:"#5a5a8a"}},c.sub)
-              );
-            })
-          )
-        )}
+        {/* ══ HJEM ══ */}
+        {view==="home" && <div style={s.col}>
+          <div style={{background:"linear-gradient(135deg,#0f1a2a,#0a1828)",border:"1px solid #1a3a5a",borderRadius:14,padding:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:"1.4rem"}}>🌊</span>
+              <div>
+                <p style={{fontSize:"0.95rem",fontWeight:500,color:"#c0d8f0",marginBottom:2}}>Følelsestjek</p>
+                <p style={{fontSize:"0.75rem",color:aktAlarmer>0?"#4895EF":"#5a7a9a"}}>
+                  {aktAlarmer>0?`🔔 ${aktAlarmer} påmindelse${aktAlarmer>1?"r":""} aktiv`:"Stop op og mærk dig selv"}
+                </p>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button style={{border:"none",borderRadius:8,padding:"9px 11px",color:"#fff",fontSize:"1.1rem",cursor:"pointer",background:"#1a1a40"}} onClick={() => setVisAlarm(v=>!v)}>🔔</button>
+              <button style={{border:"none",borderRadius:8,padding:"9px 14px",color:"#fff",fontSize:"0.82rem",cursor:"pointer",background:"#9B5DE5"}} onClick={åbnTjek}>Start tjek</button>
+            </div>
+          </div>
 
-        {view==="kriseplan"&&React.createElement("div",{style:S.col},
-          React.createElement("div",null,
-            React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#f0f0ff",marginBottom:6}},"Min Kriseplan"),
-            React.createElement("p",{style:{fontSize:"0.84rem",color:"#6a6a9a",fontStyle:"italic"}},"Din personlige plan – gemmes automatisk")
-          ),
-          [
+          {visAlarm && (
+            <div style={{background:"#0f1a2a",border:"1px solid #1a3a5a",borderRadius:12,padding:"16px",display:"flex",flexDirection:"column",gap:10}} className="fade">
+              <p style={{...s.lbl,marginBottom:2}}>🔔 Daglige påmindelser</p>
+              <p style={{fontSize:"0.76rem",color:"#5a5a8a"}}>Vælg 0–2 tidspunkter for dit daglige følelsestjek</p>
+              {alarmer.map((a,i) => (
+                <div key={a.id} style={{display:"flex",alignItems:"center",gap:12,background:"#12122a",borderRadius:10,padding:"12px"}}>
+                  <button style={{width:26,height:26,borderRadius:6,border:`1.5px solid ${a.aktiv?"#9B5DE5":"#3a3a5a"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:a.aktiv?"#9B5DE5":"transparent"}}
+                    onClick={() => togAlarm(i)}>{a.aktiv&&<span style={{color:"#fff",fontSize:"0.8rem"}}>✓</span>}</button>
+                  <div style={{flex:1}}>
+                    <p style={{fontSize:"0.8rem",color:a.aktiv?"#c0c0e0":"#5a5a8a",marginBottom:4}}>Påmindelse {i+1}</p>
+                    <input type="time" value={a.tid} disabled={!a.aktiv} onChange={e => updAlarmTid(i,e.target.value)}
+                      style={{background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:6,padding:"6px 10px",color:"#dcdcee",fontSize:"0.95rem",width:"100%",opacity:a.aktiv?1:0.4}}/>
+                  </div>
+                  {a.aktiv && <button style={{border:"none",borderRadius:8,padding:"8px 12px",color:"#fff",fontSize:"0.78rem",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,background:a.sat?"#2DC653":"#9B5DE5"}}
+                    onClick={() => sætAlarm(i)}>{a.sat?"✓ Sat":"Sæt alarm"}</button>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{background:"linear-gradient(135deg,#16103a,#1a1050)",border:"1px solid #2a2060",borderRadius:16,padding:"22px"}}>
+            <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.25rem",color:"#f0f0ff",marginBottom:8}}>Har du det svært lige nu?</p>
+            <p style={{fontSize:"0.86rem",color:"#8888aa",lineHeight:1.65,marginBottom:16}}>Start med at navngive din følelse – eller gå direkte til din kriseplan.</p>
+            <div style={{display:"flex",gap:10}}>
+              <button style={{flex:1,border:"none",borderRadius:10,padding:"12px 16px",color:"#fff",fontSize:"0.88rem",cursor:"pointer",background:"#9B5DE5"}} onClick={() => setView("følelser")}>Navngiv følelse</button>
+              <button style={{flex:1,border:"none",borderRadius:10,padding:"12px 16px",color:"#fff",fontSize:"0.88rem",cursor:"pointer",background:"#E63946"}} onClick={() => setView("kriseplan")}>Kriseplan →</button>
+            </div>
+          </div>
+
+          <p style={s.lbl}>Hvad er kognitiv tilgang?</p>
+          <div style={s.infoBox}>
+            <p style={{fontSize:"0.87rem",color:"#8888aa",lineHeight:1.7}}>Kognitive metoder bygger på idéen om at <span style={{color:"#9B5DE5",fontWeight:500}}>tanker → følelser → krop → adfærd</span> hænger uløseligt sammen og påvirker hinanden. Når vi genkender automatiske tanker, kan vi udfordre dem – og vælge en anden vej.</p>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:12,alignItems:"center"}}>
+              {["Situation","→","Tanke","→","Følelse","→","Krop","→","Adfærd"].map((t,i) => (
+                <span key={i} style={t==="→"?{color:"#3a3a6a",fontSize:"0.8rem"}:{background:"#1e1e40",borderRadius:20,padding:"4px 10px",fontSize:"0.74rem",color:"#8080b8"}}>{t}</span>
+              ))}
+            </div>
+          </div>
+
+          <p style={s.lbl}>Dine værktøjer</p>
+          <div style={s.grid2}>
+            {[
+              {l:"Min kriseplan",sub:"Din personlige plan",sym:"🛡",c:"#E63946",t:"kriseplan"},
+              {l:"6 grundfølelser",sub:"Navngiv hvad du mærker",sym:"🌊",c:"#9B5DE5",t:"følelser"},
+              {l:"Analyser tanken",sub:"Kognitiv analyse trin for trin",sym:"⟳",c:"#4895EF",t:"kognitiv"},
+              {l:"Dagbog",sub:"Dine tidligere registreringer",sym:"📖",c:"#F4A261",t:"dagbog"},
+            ].map(c => (
+              <button key={c.l} style={{...s.toolCard,borderTop:`3px solid ${c.c}`}} onClick={() => setView(c.t)}>
+                <span style={{fontSize:"1.3rem",color:c.c}}>{c.sym}</span>
+                <span style={{fontSize:"0.87rem",fontWeight:500}}>{c.l}</span>
+                <span style={{fontSize:"0.71rem",color:"#5a5a8a"}}>{c.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>}
+
+        {/* ══ KRISEPLAN ══ */}
+        {view==="kriseplan" && <div style={s.col}>
+          <div><p style={s.pageTitle}>Min Kriseplan</p><p style={s.pageSub}>Din personlige plan – gemmes automatisk</p></div>
+          {[
             {farve:"#06D6A0",emoji:"💚",titel:"Hvad er vigtigt for dig?",sub:"Din motivation og dit udgangspunkt",
-             hjælp:"Svar gerne på det der giver mening for dig. Det du skriver her kan minde dig om hvorfor du kæmper – også når det er svært.",
+             hjælp:"Det du skriver her kan minde dig om hvorfor du kæmper – også når det er svært.",
              spørg:["Hvad prøver du at passe på i dit liv lige nu?","Hvad håber du bliver anderledes?","Hvad betyder mest for dig – og hvad risikerer du at miste?","Hvad er din vigtigste grund til at reducere eller stoppe dit forbrug?"],
-             val:vigtigt,set:setVigtigt,color:"#0d1f18",bcolor:"#1a3a28",tcolor:"#06D6A0",textcolor:"#90d8b8",rows:5,
-             ph:"Skriv med dine egne ord – der er ingen rigtige eller forkerte svar…"},
+             val:vigtigt,set:setVigtigt,bg:"#0d1f18",bc:"#1a3a28",tc:"#06D6A0",vc:"#90d8b8",rows:5,ph:"Skriv med dine egne ord – der er ingen rigtige eller forkerte svar…"},
             {farve:"#9B5DE5",emoji:"📝",titel:"Min personlige aftale",sub:"En aftale med mig selv",
              hjælp:"Skriv en kort aftale med dig selv – hvad forpligter du dig til, når det bliver svært?",
-             spørg:[],val:aftale,set:setAftale,color:"#1a102a",bcolor:"#3a2060",tcolor:"#9B5DE5",textcolor:"#c0b0e0",rows:4,
-             ph:"Fx: Jeg lover mig selv, at når jeg mærker advarselstegnene, vil jeg…\n\nJeg fortjener et liv uden rusmidler, fordi…"},
+             spørg:[],val:aftale,set:setAftale,bg:"#1a102a",bc:"#3a2060",tc:"#9B5DE5",vc:"#c0b0e0",rows:4,ph:"Fx: Jeg lover mig selv, at når jeg mærker advarselstegnene, vil jeg…"},
             {farve:"#4895EF",emoji:"🧰",titel:"Hvad hjælper faktisk?",sub:"Dine egne strategier der virker",
              hjælp:"Det du skriver her er din personlige værktøjskasse. Kom tilbage til den når det er svært.",
-             spørg:["Hvad hjælper dig med at falde ned når du har det svært?","Hvad hjælper mod cravings – hvad har virket for dig tidligere?","Hvad giver dig ro i kroppen og i hovedet?","Hvem eller hvad kan du søge hen imod i stedet?"],
-             val:hvadHjælper,set:setHvadHjælper,color:"#0d1428",bcolor:"#1a2a4a",tcolor:"#4895EF",textcolor:"#90b8e0",rows:5,
-             ph:"Skriv det der rent faktisk virker for dig – store og små ting…"},
-          ].map(function(sek){
-            return React.createElement("div",{key:sek.titel,style:S.planSek},
-              React.createElement("div",{style:Object.assign({},S.planHdr,{borderLeft:"4px solid "+sek.farve})},
-                React.createElement("span",{style:{fontSize:"1.3rem"}},sek.emoji),
-                React.createElement("div",null,
-                  React.createElement("p",{style:{fontSize:"1rem",fontWeight:600,color:sek.farve,marginBottom:2}},sek.titel),
-                  React.createElement("p",{style:{fontSize:"0.75rem",color:"#6a6a9a"}},sek.sub)
-                )
-              ),
-              React.createElement("div",{style:S.planBody},
-                React.createElement("p",{style:S.planHjælp},sek.hjælp),
-                sek.spørg.length>0&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:6}},
-                  sek.spørg.map(function(q,i){
-                    return React.createElement("p",{key:i,style:{fontSize:"0.78rem",color:"#5a5a8a",fontStyle:"italic",paddingLeft:8,borderLeft:"2px solid "+sek.farve+"50"}},"– "+q);
-                  })
-                ),
-                React.createElement("textarea",{style:Object.assign({},S.planTA,{borderColor:sek.farve+"50"}),rows:sek.rows,
-                  placeholder:sek.ph,value:sek.val,onChange:function(e){sek.set(e.target.value);}}),
-                sek.val&&React.createElement("div",{style:{background:sek.color,borderRadius:10,padding:"14px",border:"1px solid "+sek.bcolor}},
-                  React.createElement("p",{style:{fontSize:"0.7rem",color:sek.tcolor,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}},"Det du har skrevet"),
-                  React.createElement("p",{style:{fontSize:"0.9rem",color:sek.textcolor,lineHeight:1.65,fontStyle:"italic"}},'"'+sek.val+'"')
-                )
-              )
-            );
-          }),
-          React.createElement("div",{style:S.planSek},
-            React.createElement("div",{style:Object.assign({},S.planHdr,{borderLeft:"4px solid #F4A261"})},
-              React.createElement("span",{style:{fontSize:"1.3rem"}},"⚠️"),
-              React.createElement("div",null,
-                React.createElement("p",{style:{fontSize:"1rem",fontWeight:600,color:"#F4A261",marginBottom:2}},"Mine advarselstegn"),
-                React.createElement("p",{style:{fontSize:"0.75rem",color:"#6a6a9a"}},"Tidlige signaler på at jeg har det svært")
-              )
-            ),
-            React.createElement("div",{style:S.planBody},
-              React.createElement("p",{style:S.planHjælp},"Advarselstegn er de tidlige signaler du lægger mærke til, inden krisen er fuld udviklet."),
-              adv.map(function(a,i){
-                return React.createElement("div",{key:i,style:{display:"flex",alignItems:"center",gap:10}},
-                  React.createElement("span",{style:{color:"#F4A261",flexShrink:0}},"◆"),
-                  React.createElement("input",{style:S.planInput,value:a,
-                    placeholder:["Fx: Jeg isolerer mig og svarer ikke på beskeder","Fx: Jeg sover dårligt eller meget for meget","Fx: Jeg begynder at romantisere brugen","Fx: Skriv dit eget advarselstegn…"][i]||"Fx: Skriv dit eget advarselstegn…",
-                    onChange:function(e){updAdv(i,e.target.value);}})
-                );
-              }),
-              React.createElement("button",{style:S.addBtn,onClick:function(){setAdv(function(p){return p.concat([""]);});}},"+ Tilføj advarselstegn")
-            )
-          ),
-          React.createElement("div",{style:S.planSek},
-            React.createElement("div",{style:Object.assign({},S.planHdr,{borderLeft:"4px solid #E63946"})},
-              React.createElement("span",{style:{fontSize:"1.3rem"}},"🚨"),
-              React.createElement("div",null,
-                React.createElement("p",{style:{fontSize:"1rem",fontWeight:600,color:"#E63946",marginBottom:2}},"5-trins kriseplan"),
-                React.createElement("p",{style:{fontSize:"0.75rem",color:"#6a6a9a"}},"Hvad gør jeg, når krisen rammer?")
-              )
-            ),
-            React.createElement("div",{style:Object.assign({},S.planBody,{gap:8})},
-              React.createElement("p",{style:S.planHjælp},"Følg trinnene i orden. Sæt flueben efterhånden som du gennemfører dem."),
-              K5.map(function(trin){
-                return React.createElement("div",{key:trin.id},
-                  React.createElement("button",{style:Object.assign({},S.ktHdr,{borderLeft:"4px solid "+trin.farve,background:kriseStatus[trin.id]?trin.farve+"18":"#141430"}),
-                    onClick:function(){setAktKrise(function(prev){return prev===trin.id?null:trin.id;});}},
-                    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,flex:1,textAlign:"left"}},
-                      React.createElement("button",{style:Object.assign({},S.ktBox,{background:kriseStatus[trin.id]?trin.farve:"transparent",borderColor:trin.farve}),
-                        onClick:function(e){e.stopPropagation();togKrise(trin.id);}},
-                        kriseStatus[trin.id]&&React.createElement("span",{style:{color:"#fff",fontSize:"0.8rem"}},"✓")
-                      ),
-                      React.createElement("span",{style:{fontSize:"1rem",fontWeight:700,color:trin.farve}},trin.nr),
-                      React.createElement("p",{style:{fontSize:"0.95rem",fontWeight:500,color:kriseStatus[trin.id]?"#7070a0":"#e0e0f0"}},trin.emoji+" "+trin.titel)
-                    ),
-                    React.createElement("span",{style:{color:"#3a3a6a"}},aktKrise===trin.id?"▲":"▼")
-                  ),
-                  aktKrise===trin.id&&React.createElement("div",{style:Object.assign({},S.ktBody,{borderLeft:"4px solid "+trin.farve}),className:"fade"},
-                    React.createElement("p",{style:{fontSize:"0.87rem",color:"#9090b0",lineHeight:1.65}},trin.beskrivelse),
-                    React.createElement("div",{style:{paddingLeft:12,marginLeft:4,borderLeft:"2px solid "+trin.farve}},
-                      React.createElement("p",{style:{fontSize:"0.85rem",color:"#b0b0cc",lineHeight:1.6}},trin.handling)
-                    )
-                  )
-                );
-              }),
-              kriseDone>0&&React.createElement("div",{style:S.progBar},
-                React.createElement("div",{style:Object.assign({},S.progFill,{width:(kriseDone/5*100)+"%"})}),
-                React.createElement("p",{style:{fontSize:"0.75rem",color:"#c0c0d8",position:"relative",zIndex:1,paddingLeft:12}},kriseDone+"/5 trin gennemført")
-              ),
-              React.createElement("button",{style:{background:"none",border:"none",color:"#4a4a6a",fontSize:"0.75rem",cursor:"pointer",textDecoration:"underline",alignSelf:"flex-end"},
-                onClick:function(){setKriseStatus({});}},"Nulstil flueben")
-            )
-          )
-        )}
+             spørg:["Hvad hjælper dig med at falde ned når du har det svært?","Hvad hjælper mod trang – hvad har virket for dig tidligere?","Hvad giver dig ro i kroppen og i hovedet?","Hvem eller hvad kan du søge hen imod i stedet?"],
+             val:hvadHjælper,set:setHvadHjælper,bg:"#0d1428",bc:"#1a2a4a",tc:"#4895EF",vc:"#90b8e0",rows:5,ph:"Skriv det der rent faktisk virker for dig – store og små ting…"},
+          ].map(sek => (
+            <div key={sek.titel} style={s.planSek}>
+              <div style={{...s.planHdr,borderLeft:`4px solid ${sek.farve}`}}>
+                <span style={{fontSize:"1.3rem"}}>{sek.emoji}</span>
+                <div><p style={{fontSize:"1rem",fontWeight:600,color:sek.farve,marginBottom:2}}>{sek.titel}</p><p style={{fontSize:"0.75rem",color:"#6a6a9a"}}>{sek.sub}</p></div>
+              </div>
+              <div style={s.planBody}>
+                <p style={s.planHjælp}>{sek.hjælp}</p>
+                {sek.spørg.length>0 && <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  {sek.spørg.map((q,i) => <p key={i} style={{fontSize:"0.77rem",color:"#5a5a8a",fontStyle:"italic",paddingLeft:8,borderLeft:`2px solid ${sek.farve}50`}}>– {q}</p>)}
+                </div>}
+                <textarea style={{...s.planTA,borderColor:sek.farve+"50"}} rows={sek.rows} placeholder={sek.ph} value={sek.val} onChange={e => sek.set(e.target.value)}/>
+                {sek.val && <div style={{background:sek.bg,borderRadius:10,padding:"14px",border:`1px solid ${sek.bc}`}}>
+                  <p style={{fontSize:"0.7rem",color:sek.tc,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Det du har skrevet</p>
+                  <p style={{fontSize:"0.88rem",color:sek.vc,lineHeight:1.65,fontStyle:"italic"}}>"{sek.val}"</p>
+                </div>}
+              </div>
+            </div>
+          ))}
+          <div style={s.planSek}>
+            <div style={{...s.planHdr,borderLeft:"4px solid #F4A261"}}>
+              <span style={{fontSize:"1.3rem"}}>⚠️</span>
+              <div><p style={{fontSize:"1rem",fontWeight:600,color:"#F4A261",marginBottom:2}}>Mine advarselstegn</p><p style={{fontSize:"0.75rem",color:"#6a6a9a"}}>Tidlige signaler på at jeg har det svært</p></div>
+            </div>
+            <div style={s.planBody}>
+              <p style={s.planHjælp}>Advarselstegn er de tidlige signaler du lægger mærke til, inden krisen er fuld udviklet.</p>
+              {adv.map((a,i) => (
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{color:"#F4A261",flexShrink:0}}>◆</span>
+                  <input style={s.planInput} value={a}
+                    placeholder={["Fx: Jeg isolerer mig og svarer ikke på beskeder","Fx: Jeg sover dårligt eller meget for meget","Fx: Jeg begynder at romantisere brugen","Fx: Skriv dit eget advarselstegn…"][i]||"Fx: Skriv dit eget advarselstegn…"}
+                    onChange={e => updAdv(i,e.target.value)}/>
+                </div>
+              ))}
+              <button style={s.addBtn} onClick={() => setAdv(p => [...p,""])}>+ Tilføj advarselstegn</button>
+            </div>
+          </div>
+          <div style={s.planSek}>
+            <div style={{...s.planHdr,borderLeft:"4px solid #E63946"}}>
+              <span style={{fontSize:"1.3rem"}}>🚨</span>
+              <div><p style={{fontSize:"1rem",fontWeight:600,color:"#E63946",marginBottom:2}}>5-trins kriseplan</p><p style={{fontSize:"0.75rem",color:"#6a6a9a"}}>Hvad gør jeg, når krisen rammer?</p></div>
+            </div>
+            <div style={{...s.planBody,gap:8}}>
+              <p style={s.planHjælp}>Følg trinnene i orden. Sæt flueben efterhånden som du gennemfører dem.</p>
+              {K5.map(trin => (
+                <div key={trin.id}>
+                  <button style={{width:"100%",background:kriseStatus[trin.id]?trin.farve+"18":"#141430",border:"1px solid #1e1e40",borderLeft:`4px solid ${trin.farve}`,borderRadius:10,padding:"13px 14px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",color:"#dcdcee",gap:8}}
+                    onClick={() => setAktKrise(aktKrise===trin.id?null:trin.id)}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,flex:1,textAlign:"left"}}>
+                      <button style={{width:22,height:22,borderRadius:5,border:`1.5px solid ${trin.farve}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,background:kriseStatus[trin.id]?trin.farve:"transparent"}}
+                        onClick={e=>{e.stopPropagation();togKrise(trin.id);}}>
+                        {kriseStatus[trin.id]&&<span style={{color:"#fff",fontSize:"0.8rem"}}>✓</span>}
+                      </button>
+                      <span style={{fontSize:"1rem",fontWeight:700,color:trin.farve}}>{trin.nr}</span>
+                      <p style={{fontSize:"0.95rem",fontWeight:500,color:kriseStatus[trin.id]?"#7070a0":"#e0e0f0"}}>{trin.emoji} {trin.titel}</p>
+                    </div>
+                    <span style={{color:"#3a3a6a"}}>{aktKrise===trin.id?"▲":"▼"}</span>
+                  </button>
+                  {aktKrise===trin.id && (
+                    <div style={{background:"#0e0e25",borderLeft:`4px solid ${trin.farve}`,borderRadius:"0 0 10px 10px",padding:"14px 16px",display:"flex",flexDirection:"column",gap:10,marginTop:-2}} className="fade">
+                      <p style={{fontSize:"0.87rem",color:"#9090b0",lineHeight:1.65}}>{trin.beskrivelse}</p>
+                      <div style={{paddingLeft:12,marginLeft:4,borderLeft:`2px solid ${trin.farve}`}}>
+                        <p style={{fontSize:"0.85rem",color:"#b0b0cc",lineHeight:1.6}}>{trin.handling}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {kriseDone>0 && (
+                <div style={{background:"#1a1a3a",borderRadius:8,height:28,position:"relative",overflow:"hidden",display:"flex",alignItems:"center"}}>
+                  <div style={{position:"absolute",left:0,top:0,bottom:0,background:"linear-gradient(90deg,#2DC653,#06D6A0)",borderRadius:8,transition:"width 0.4s",width:`${(kriseDone/5)*100}%`}}/>
+                  <p style={{fontSize:"0.75rem",color:"#c0c0d8",position:"relative",zIndex:1,paddingLeft:12}}>{kriseDone}/5 trin gennemført</p>
+                </div>
+              )}
+              <button style={{background:"none",border:"none",color:"#4a4a6a",fontSize:"0.75rem",cursor:"pointer",textDecoration:"underline",alignSelf:"flex-end"}} onClick={() => setKriseStatus({})}>Nulstil flueben</button>
+            </div>
+          </div>
+        </div>}
 
-        {view==="følelser"&&React.createElement("div",{style:S.col},
-          !valgtF?React.createElement(React.Fragment,null,
-            React.createElement("div",null,
-              React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#f0f0ff",marginBottom:6}},"De 6 grundfølelser"),
-              React.createElement("p",{style:{fontSize:"0.84rem",color:"#6a6a9a",fontStyle:"italic"}},"Hvad er den dominerende følelse? Vælg én for at uddybe.")
-            ),
-            React.createElement("div",{style:S.følGrid},
-              GF.map(function(fv){
-                return React.createElement("button",{key:fv.id,style:Object.assign({},S.følKort,{borderColor:fv.farve}),onClick:function(){setValgtF(fv.id);setValgtN(null);}},
-                  React.createElement("span",{style:{fontSize:"2rem"}},fv.emoji),
-                  React.createElement("span",{style:{fontSize:"1rem",fontWeight:600,color:fv.farve}},fv.navn),
-                  React.createElement("span",{style:{fontSize:"0.71rem",color:"#5a5a8a",textAlign:"center"}},fv.beskrivelse)
-                );
-              })
-            )
-          ):React.createElement("div",{style:S.col,className:"fade"},
-            React.createElement("button",{style:S.backBtn,onClick:function(){setValgtF(null);setValgtN(null);}},"← Tilbage"),
-            React.createElement("div",{style:{borderRadius:12,padding:"18px 16px",background:f.farve+"15",borderLeft:"4px solid "+f.farve}},
-              React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12,marginBottom:10}},
-                React.createElement("span",{style:{fontSize:"2.2rem"}},f.emoji),
-                React.createElement("span",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.6rem",color:f.farve}},f.navn)
-              ),
-              React.createElement("p",{style:{fontSize:"0.86rem",color:"#9090b0",lineHeight:1.65}},f.kognitivt)
-            ),
-            React.createElement("p",{style:S.lbl},"Uddyb – vælg en nuance"),
-            React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
-              f.nuancer.map(function(n){
-                return React.createElement("button",{key:n,style:{border:"1px solid",borderRadius:20,padding:"7px 14px",fontSize:"0.84rem",cursor:"pointer",
-                  background:valgtN===n?f.farve:"transparent",borderColor:f.farve,color:valgtN===n?"#fff":f.farve},
-                  onClick:function(){setValgtN(n);}},n);
-              })
-            ),
-            React.createElement("div",null,
-              React.createElement("p",{style:{fontSize:"0.9rem",marginBottom:8,color:"#c0c0d8"}},"Intensitet: ",React.createElement("strong",{style:{color:f.farve}},int+"/10")),
-              React.createElement("input",{type:"range",min:1,max:10,value:int,onChange:function(e){setInt(Number(e.target.value));},style:{width:"100%",accentColor:f.farve,cursor:"pointer"}}),
-              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:"0.7rem",color:"#5a5a8a",marginTop:4}},
-                React.createElement("span",null,"Svag"),React.createElement("span",null,"Overvældende")
-              )
-            ),
-            React.createElement("p",{style:S.lbl},"Typiske automatiske tanker"),
-            React.createElement("div",{style:{background:"#12122a",border:"1px solid #1e1e40",borderRadius:12,padding:"14px 16px",display:"flex",flexDirection:"column",gap:9}},
-              f.tanker.map(function(t,i){
-                return React.createElement("div",{key:i,style:{display:"flex",gap:8,alignItems:"flex-start",fontSize:"0.87rem"}},
-                  React.createElement("span",{style:{color:f.farve,fontSize:"1.1rem"}},"「"),
-                  React.createElement("span",{style:{color:"#b0b0cc",fontStyle:"italic",lineHeight:1.5}},t),
-                  React.createElement("span",{style:{color:f.farve,fontSize:"1.1rem"}},"」")
-                );
-              })
-            ),
-            React.createElement("p",{style:S.lbl},"Strategier"),
-            React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10}},
-              f.strategier.map(function(str,i){
-                return React.createElement("div",{key:i,style:{display:"flex",gap:12,alignItems:"flex-start",background:"#12122a",borderRadius:10,padding:"12px 14px"}},
-                  React.createElement("div",{style:{width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"0.8rem",fontWeight:600,flexShrink:0,background:f.farve}},i+1),
-                  React.createElement("p",{style:{fontSize:"0.87rem",color:"#b0b0cc",lineHeight:1.55}},str)
-                );
-              })
-            ),
-            React.createElement("button",{style:Object.assign({},S.primaryBtn,{background:f.farve}),onClick:gåTilAnalyse},"Analyser tanken bag følelsen →")
-          )
-        )}
+        {/* ══ FØLELSER ══ */}
+        {view==="følelser" && <div style={s.col}>
+          {!valgtF ? <>
+            <div><p style={s.pageTitle}>De 6 grundfølelser</p><p style={s.pageSub}>Hvad er den dominerende følelse? Vælg én for at uddybe.</p></div>
+            <div style={s.følGrid}>
+              {GF.map(fv => (
+                <button key={fv.id} style={{...s.følKort,borderColor:fv.farve}} onClick={() => {setValgtF(fv.id);setValgtN(null);}}>
+                  <span style={{fontSize:"2rem"}}>{fv.emoji}</span>
+                  <span style={{fontSize:"1rem",fontWeight:600,color:fv.farve}}>{fv.navn}</span>
+                  <span style={{fontSize:"0.71rem",color:"#5a5a8a",textAlign:"center"}}>{fv.beskrivelse}</span>
+                </button>
+              ))}
+            </div>
+          </> : <div style={s.col} className="fade">
+            <button style={s.backBtn} onClick={() => {setValgtF(null);setValgtN(null);}}>← Tilbage</button>
+            <div style={{borderRadius:12,padding:"18px 16px",background:f.farve+"15",borderLeft:`4px solid ${f.farve}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+                <span style={{fontSize:"2.2rem"}}>{f.emoji}</span>
+                <span style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.6rem",color:f.farve}}>{f.navn}</span>
+              </div>
+              <p style={{fontSize:"0.86rem",color:"#9090b0",lineHeight:1.65}}>{f.kognitivt}</p>
+            </div>
+            <p style={s.lbl}>Uddyb – vælg en nuance</p>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {f.nuancer.map(n => (
+                <button key={n} style={{border:"1px solid",borderRadius:20,padding:"7px 14px",fontSize:"0.84rem",cursor:"pointer",
+                  background:valgtN===n?f.farve:"transparent",borderColor:f.farve,color:valgtN===n?"#fff":f.farve}}
+                  onClick={() => setValgtN(n)}>{n}</button>
+              ))}
+            </div>
+            <div>
+              <p style={{fontSize:"0.9rem",marginBottom:8,color:"#c0c0d8"}}>Intensitet: <strong style={{color:f.farve}}>{int}/10</strong></p>
+              <input type="range" min={1} max={10} value={int} onChange={e => setInt(Number(e.target.value))} style={{width:"100%",accentColor:f.farve,cursor:"pointer"}}/>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:"0.7rem",color:"#5a5a8a",marginTop:4}}><span>Svag</span><span>Overvældende</span></div>
+            </div>
+            <p style={s.lbl}>Typiske automatiske tanker</p>
+            <div style={{background:"#12122a",border:"1px solid #1e1e40",borderRadius:12,padding:"14px 16px",display:"flex",flexDirection:"column",gap:9}}>
+              {f.tanker.map((t,i) => (
+                <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",fontSize:"0.87rem"}}>
+                  <span style={{color:f.farve,fontSize:"1.1rem"}}>「</span>
+                  <span style={{color:"#b0b0cc",fontStyle:"italic",lineHeight:1.5}}>{t}</span>
+                  <span style={{color:f.farve,fontSize:"1.1rem"}}>」</span>
+                </div>
+              ))}
+            </div>
+            <p style={s.lbl}>Strategier</p>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {f.strategier.map((str,i) => (
+                <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",background:"#12122a",borderRadius:10,padding:"12px 14px"}}>
+                  <div style={{width:26,height:26,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"0.8rem",fontWeight:600,flexShrink:0,background:f.farve}}>{i+1}</div>
+                  <p style={{fontSize:"0.87rem",color:"#b0b0cc",lineHeight:1.55}}>{str}</p>
+                </div>
+              ))}
+            </div>
+            <button style={{border:"none",borderRadius:12,padding:"13px 20px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",width:"100%",background:f.farve}} onClick={gåTilAnalyse}>
+              Analyser tanken bag følelsen →
+            </button>
+          </div>}
+        </div>}
 
-        {view==="kognitiv"&&React.createElement("div",{style:S.col},
-          React.createElement("div",null,
-            React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#f0f0ff",marginBottom:6}},"Kognitiv analyse"),
-            React.createElement("p",{style:{fontSize:"0.84rem",color:"#6a6a9a",fontStyle:"italic"}},"Arbejd dig igennem situationen trin for trin")
-          ),
-          React.createElement("div",{style:S.infoBox},
-            React.createElement("p",{style:{fontSize:"0.87rem",color:"#8888aa",lineHeight:1.7}},"Tanker er ikke fakta. Denne øvelse hjælper dig med at se situationen fra en ny vinkel. ",React.createElement("span",{style:{color:"#5a5a8a"}},"Analysen gemmes i dagbogen når du trykker 'Gem'."))
-          ),
-          KT.map(function(trin,idx){
-            return React.createElement("div",{key:trin.id},
-              React.createElement("button",{style:Object.assign({},S.trinHdr,{borderLeft:"4px solid "+trin.farve,background:aktTrin===trin.id?"#141430":"#11112a"}),
-                onClick:function(){setAktTrin(function(prev){return prev===trin.id?null:trin.id;});}},
-                React.createElement("div",{style:{display:"flex",alignItems:"flex-start",gap:12,flex:1,textAlign:"left"}},
-                  React.createElement("span",{style:{color:trin.farve,fontSize:"1.2rem",fontWeight:700,lineHeight:1.3,flexShrink:0}},trin.ikon),
-                  React.createElement("div",null,
-                    React.createElement("p",{style:{fontSize:"0.95rem",fontWeight:500,color:"#e0e0f0",marginBottom:2}},trin.titel),
-                    React.createElement("p",{style:{fontSize:"0.77rem",color:"#6a6a9a",fontStyle:"italic"}},trin.spørgsmål)
-                  )
-                ),
-                React.createElement("span",{style:{color:kog[trin.id]?"#2DC653":"#3a3a5a",fontSize:"1rem",flexShrink:0}},
-                  kog[trin.id]?"✓":(aktTrin===trin.id?"▲":"▼")
-                )
-              ),
-              aktTrin===trin.id&&React.createElement("div",{style:Object.assign({},S.trinBody,{borderLeft:"4px solid "+trin.farve}),className:"fade"},
-                React.createElement("p",{style:{fontSize:"0.82rem",color:"#6a6a9a",lineHeight:1.6,fontStyle:"italic"}},trin.hjælp),
-                React.createElement("div",{style:Object.assign({},S.sammBox,{borderColor:trin.farve+"40",background:trin.farve+"0d"})},
-                  React.createElement("span",{style:{fontSize:"0.68rem",textTransform:"uppercase",letterSpacing:"0.1em",fontWeight:600,color:trin.farve}},"↻ Sammenhæng"),
-                  React.createElement("p",{style:{fontSize:"0.83rem",color:"#b0b0cc",lineHeight:1.6}},trin.sammenhæng)
-                ),
-                React.createElement("textarea",{style:Object.assign({},S.ta,{borderColor:trin.farve+"50"}),rows:3,
-                  placeholder:trin.placeholder,value:kog[trin.id]||"",onChange:function(e){updKog(trin.id,e.target.value);}}),
-                idx<KT.length-1&&React.createElement("button",{style:{background:"none",border:"1px solid "+trin.farve,borderRadius:8,padding:"8px 16px",fontSize:"0.81rem",cursor:"pointer",alignSelf:"flex-end",color:trin.farve},
-                  onClick:function(){setAktTrin(KT[idx+1].id);}},"Næste trin →")
-              )
-            );
-          }),
-          Object.keys(kog).length>=2&&React.createElement("div",{style:S.opsumBox,className:"fade"},
-            React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#06D6A0",marginBottom:12}},"Din analyse"),
-            KT.filter(function(t){return kog[t.id];}).map(function(t){
-              return React.createElement("div",{key:t.id,style:{borderBottom:"1px solid #1a3a28",paddingBottom:10}},
-                React.createElement("span",{style:{fontSize:"0.72rem",textTransform:"uppercase",letterSpacing:"0.08em",color:t.farve,fontWeight:600}},t.ikon+" "+t.titel),
-                React.createElement("p",{style:{fontSize:"0.87rem",color:"#b0c0b8",lineHeight:1.55,marginTop:4}},kog[t.id])
-              );
-            }),
-            React.createElement("div",{style:{display:"flex",gap:10,marginTop:8}},
-              React.createElement("button",{style:Object.assign({},S.primaryBtn,{background:"#06D6A0",color:"#0a1f14",flex:2}),onClick:gemAnalyse},"📖 Gem i dagbog"),
-              React.createElement("button",{style:Object.assign({},S.primaryBtn,{background:"#1a1a3a",color:"#5a5a8a",border:"1px solid #2a2a4a",flex:1,fontSize:"0.82rem"}),
-                onClick:function(){setKog({});setAktTrin(null);}},"Ryd")
-            )
-          )
-        )}
+        {/* ══ KOGNITIV ANALYSE ══ */}
+        {view==="kognitiv" && <div style={s.col}>
+          <div>
+            <p style={s.pageTitle}>Kognitiv analyse{analyseRunde>1?` – runde ${analyseRunde}`:""}</p>
+            <p style={s.pageSub}>Arbejd dig igennem situationen trin for trin</p>
+          </div>
+          <div style={s.infoBox}>
+            <p style={{fontSize:"0.87rem",color:"#8888aa",lineHeight:1.7}}>Tanker er ikke fakta. Start med at beskrive situationen og dine reaktioner – analysen gemmes automatisk undervejs og i dagbogen til sidst.</p>
+          </div>
 
-        {view==="dagbog"&&React.createElement("div",{style:S.col},
-          React.createElement("div",null,
-            React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#f0f0ff",marginBottom:6}},"📖 Dagbog"),
-            React.createElement("p",{style:{fontSize:"0.84rem",color:"#6a6a9a",fontStyle:"italic"}},"Dine registreringer – gemt kun på denne enhed")
-          ),
-          React.createElement("div",{style:{display:"flex",gap:8}},
-            [{id:"alle",l:"Alle"},{id:"analyse",l:"Analyser"},{id:"tjek",l:"Følelsestjek"}].map(function(fl){
-              return React.createElement("button",{key:fl.id,style:{flex:1,padding:"8px",borderRadius:8,border:"1px solid",cursor:"pointer",fontSize:"0.82rem",
-                background:dagFilter===fl.id?"#9B5DE5":"transparent",borderColor:dagFilter===fl.id?"#9B5DE5":"#2a2a4a",color:dagFilter===fl.id?"#fff":"#6a6a9a"},
-                onClick:function(){setDagFilter(fl.id);}},fl.l);
-            })
-          ),
-          filtreret.length===0&&React.createElement("div",{style:{textAlign:"center",padding:"40px 20px",color:"#4a4a6a"}},
-            React.createElement("p",{style:{fontSize:"1.5rem",marginBottom:12}},"📖"),
-            React.createElement("p",{style:{fontSize:"0.9rem"}},"Ingen registreringer endnu."),
-            React.createElement("p",{style:{fontSize:"0.78rem",marginTop:6}},"Lav et følelsestjek eller en kognitiv analyse – de gemmes automatisk her.")
-          ),
-          filtreret.map(function(post){
-            return React.createElement("div",{key:post.id},
-              React.createElement("button",{style:Object.assign({},S.dagKort,{borderLeft:post.type==="analyse"?"4px solid #06D6A0":"4px solid #4895EF"}),
-                onClick:function(){setDagbogId(function(prev){return prev===post.id?null:post.id;});}},
-                React.createElement("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",width:"100%",gap:8}},
-                  React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,flex:1}},
-                    React.createElement("span",{style:{fontSize:"1.3rem"}},post.type==="analyse"?"⟳":post.emoji),
-                    React.createElement("div",{style:{textAlign:"left"}},
-                      React.createElement("p",{style:{fontSize:"0.9rem",fontWeight:500,color:"#e0e0f0",marginBottom:2}},post.type==="analyse"?"Kognitiv analyse":post.navn),
-                      React.createElement("p",{style:{fontSize:"0.72rem",color:"#5a5a8a"}},post.dato)
-                    )
-                  ),
-                  post.type==="tjek"&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,flexShrink:0}},
-                    React.createElement("div",{style:{width:50,background:"#1a1a3a",borderRadius:4,height:4}},
-                      React.createElement("div",{style:{width:(post.intensitet*10)+"%",height:"100%",background:post.farve,borderRadius:4}})
-                    ),
-                    React.createElement("span",{style:{fontSize:"0.72rem",color:"#5a5a8a"}},post.intensitet+"/10")
-                  ),
-                  React.createElement("span",{style:{color:"#3a3a5a",flexShrink:0}},dagbogId===post.id?"▲":"▼")
-                )
-              ),
-              dagbogId===post.id&&React.createElement("div",{style:Object.assign({},S.dagBody,{borderLeft:post.type==="analyse"?"4px solid #06D6A0":"4px solid #4895EF"}),className:"fade"},
-                post.type==="tjek"&&React.createElement(React.Fragment,null,
-                  React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:8}},
-                    React.createElement("span",{style:{fontSize:"1.8rem"}},post.emoji),
-                    React.createElement("div",null,
-                      React.createElement("p",{style:{fontSize:"1rem",fontWeight:600,color:post.farve}},post.navn),
-                      React.createElement("p",{style:{fontSize:"0.78rem",color:"#5a5a8a"}},"Intensitet: "+post.intensitet+"/10")
-                    )
-                  ),
-                  post.note&&React.createElement("p",{style:{fontSize:"0.87rem",color:"#b0b0cc",lineHeight:1.6,fontStyle:"italic",borderLeft:"2px solid #4895EF",paddingLeft:10}},'"'+post.note+'"')
-                ),
-                post.type==="analyse"&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10}},
-                  KT.filter(function(t){return post.indhold&&post.indhold[t.id];}).map(function(t){
-                    return React.createElement("div",{key:t.id},
-                      React.createElement("span",{style:{fontSize:"0.7rem",textTransform:"uppercase",letterSpacing:"0.08em",color:t.farve,fontWeight:600}},t.ikon+" "+t.titel),
-                      React.createElement("p",{style:{fontSize:"0.87rem",color:"#b0c0b8",lineHeight:1.55,marginTop:4}},post.indhold[t.id])
-                    );
-                  })
-                )
-              )
-            );
-          }),
-          filtreret.length>0&&React.createElement("p",{style:{fontSize:"0.72rem",color:"#3a3a5a",textAlign:"center"}},filtreret.length+" registreringer · Gemt lokalt på denne enhed")
-        )}
+          {analyseFase==="trin" && [
+            {felt:"situation",titel:"Situation",ikon:"①",farve:"#4895EF",spørgsmål:"Hvad skete der konkret?",hjælp:"Beskriv kun fakta – ikke tolkninger. Hvad ville et kamera optage?",sammenhæng:"Situationen i sig selv er neutral – det er vores tanker om den, der sætter resten i gang.",placeholder:"Fx: Jeg var alene hjemme og modtog en besked fra en gammel ven der bruger…"},
+            {felt:"tanke",titel:"Automatisk tanke",ikon:"②",farve:"#F4A261",spørgsmål:"Hvad tænkte du i det øjeblik?",hjælp:"Automatiske tanker er hurtige og ubevidste. De opstår inden vi når at reflektere.",sammenhæng:"Tanken udløser følelsen. Samme situation kan give vidt forskellige følelser – alt efter hvilken tanke der opstår.",placeholder:"Fx: 'Det er kun én gang', 'Jeg fortjener lidt ro'…"},
+            {felt:"følelse",titel:"Følelse",ikon:"③",farve:"#9B5DE5",spørgsmål:"Hvilken følelse kom med tanken?",hjælp:"Tryk på 'Vælg følelser' for at vælge direkte, eller skriv selv. Brug de 6 grundfølelser som guide.",sammenhæng:"Følelsen forstærker tanken og sætter kroppen i beredskab. Følelse og krop påvirker hinanden gensidigt.",placeholder:"Fx: Angst (8/10), Skam (6/10)…", erFølelse:true},
+            {felt:"krop",titel:"Kropslig reaktion",ikon:"④",farve:"#C77DFF",spørgsmål:"Hvad mærkede du i kroppen?",hjælp:"Kroppen reagerer på følelser. Læg mærke til fysiske signaler – de er vigtige information.",sammenhæng:"Kropslige signaler kan selv udløse nye tanker og følelser – fx kan hjertebanken føre til tanken 'noget er galt'.",placeholder:"Fx: Klump i halsen, uro i brystet, hjertebanken…"},
+            {felt:"adfærd",titel:"Adfærd / Handling",ikon:"⑤",farve:"#E63946",spørgsmål:"Hvad havde du lyst til at gøre – eller hvad gjorde du?",hjælp:"Adfærd og handlinger følger tanker, følelser og kropslige reaktioner – og påvirker dem igen.",sammenhæng:"Adfærden afslutter ikke altid cirklen – nogle gange handler vi først, og bagefter opstår tankerne og følelserne.",placeholder:"Fx: Ville isolere mig, tænkte på at bruge…"},
+          ].map((trin,idx,arr) => (
+            <div key={trin.felt}>
+              <button style={{...s.trinHdr,borderLeft:`4px solid ${trin.farve}`,background:aktivtTrin===trin.felt?"#141430":"#11112a"}}
+                onClick={() => setAktivtTrin(aktivtTrin===trin.felt?null:trin.felt)}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:12,flex:1,textAlign:"left"}}>
+                  <span style={{color:trin.farve,fontSize:"1.2rem",fontWeight:700,lineHeight:1.3,flexShrink:0}}>{trin.ikon}</span>
+                  <div>
+                    <p style={{fontSize:"0.95rem",fontWeight:500,color:"#e0e0f0",marginBottom:2}}>{trin.titel}</p>
+                    <p style={{fontSize:"0.77rem",color:"#6a6a9a",fontStyle:"italic"}}>{trin.spørgsmål}</p>
+                  </div>
+                </div>
+                <span style={{color:kog[trin.felt]?"#2DC653":"#3a3a5a",fontSize:"1rem",flexShrink:0}}>{kog[trin.felt]?"✓":(aktivtTrin===trin.felt?"▲":"▼")}</span>
+              </button>
+              {aktivtTrin===trin.felt && (
+                <div style={{background:"#0e0e25",borderLeft:`4px solid ${trin.farve}`,borderRadius:"0 0 10px 10px",padding:"16px",display:"flex",flexDirection:"column",gap:12,marginTop:-2}}>
+                  <p style={{fontSize:"0.82rem",color:"#6a6a9a",lineHeight:1.6,fontStyle:"italic"}}>{trin.hjælp}</p>
+                  {trin.erFølelse && (
+                    <button style={{background:"#9B5DE5",border:"none",borderRadius:8,padding:"10px 14px",color:"#fff",fontSize:"0.85rem",cursor:"pointer",width:"100%",fontWeight:500}}
+                      onClick={() => { setVælgerFølelser({}); setVælgerRækkefølge([]); setVælgerÅben(true); }}>
+                      🌊 Vælg følelser direkte
+                    </button>
+                  )}
+                  <div style={{border:"1px solid",borderRadius:8,padding:"10px 12px",display:"flex",flexDirection:"column",gap:4,borderColor:trin.farve+"40",background:trin.farve+"0d"}}>
+                    <span style={{fontSize:"0.68rem",textTransform:"uppercase",letterSpacing:"0.1em",fontWeight:600,color:trin.farve}}>↻ Sammenhæng</span>
+                    <p style={{fontSize:"0.83rem",color:"#b0b0cc",lineHeight:1.6}}>{trin.sammenhæng}</p>
+                  </div>
+                  <textarea style={{background:"#12122a",border:`1px solid ${trin.farve}50`,borderRadius:8,padding:"12px",color:"#dcdcee",fontSize:"0.87rem",resize:"vertical",width:"100%",lineHeight:1.6}} rows={3}
+                    placeholder={trin.placeholder} value={kog[trin.felt]||""} onChange={e => updKog(trin.felt,e.target.value)}/>
+                  {idx<arr.length-1 ? (
+                    <button style={{background:"none",border:`1px solid ${trin.farve}`,borderRadius:8,padding:"8px 16px",fontSize:"0.81rem",cursor:"pointer",alignSelf:"flex-end",color:trin.farve}}
+                      onClick={() => setAktivtTrin(arr[idx+1].felt)}>Næste trin →</button>
+                  ) : (
+                    <button style={{background:trin.farve,border:"none",borderRadius:8,padding:"10px 16px",fontSize:"0.85rem",cursor:"pointer",color:"#fff",width:"100%",marginTop:4}}
+                      onClick={() => {setAktivtTrin(null);setAnalyseFase("adfærdSpørgsmål");}}>Fortsæt →</button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
 
-        {view==="støtte"&&React.createElement("div",{style:S.col},
-          React.createElement("div",null,
-            React.createElement("p",{style:{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#f0f0ff",marginBottom:6}},"Støtte & hjælp"),
-            React.createElement("p",{style:{fontSize:"0.84rem",color:"#6a6a9a",fontStyle:"italic"}},"Du behøver ikke klare det alene")
-          ),
-          React.createElement("p",{style:S.lbl},"Mine støttepersoner – gemmes automatisk"),
-          sup.map(function(s,i){
-            return React.createElement("div",{key:i,style:S.supKort},
-              React.createElement("div",{style:{width:40,height:40,borderRadius:"50%",background:"#1e1e50",display:"flex",alignItems:"center",justifyContent:"center",color:"#9B5DE5",fontSize:"1rem",flexShrink:0,fontWeight:600}},s.navn?s.navn[0].toUpperCase():"?"),
-              React.createElement("div",{style:{flex:1,display:"flex",flexDirection:"column",gap:8}},
-                React.createElement("input",{style:S.inp,placeholder:"Navn eller rolle",value:s.navn,onChange:function(e){updSup(i,"navn",e.target.value);}}),
-                React.createElement("input",{style:S.inp,placeholder:"Telefonnummer",value:s.tlf,onChange:function(e){updSup(i,"tlf",e.target.value);}})
-              )
-            );
-          }),
-          React.createElement("button",{style:S.addBtn,onClick:function(){setSup(function(p){return p.concat([{navn:"",tlf:""}]);});}},"+ Tilføj kontakt"),
-          React.createElement("p",{style:S.lbl},"Professionelle hjælpelinjer"),
-          [{navn:"Giftlinjen – forgiftning/overdosis",tlf:"82 12 12 12",tid:"Døgnet rundt",beskr:"Akut rådgivning ved forgiftning, overdosis og rusmidler",farve:"#E63946"},
-           {navn:"Alkolinjen – alkohol",tlf:"80 200 500",tid:"Man 9-17, tir-fre 11-17",beskr:"Anonym rådgivning om alkoholproblemer",farve:"#F4A261"},
-           {navn:"Livslinjen",tlf:"70 201 201",tid:"Døgnet rundt",beskr:"Når det er livstruende svært",farve:"#4895EF"},
-           {navn:"SMS-rådgivning",tlf:"Sms 1899",tid:"11–24 alle dage",beskr:"Skriv hvis du ikke vil tale",farve:"#9B5DE5"},
-          ].map(function(h){
-            return React.createElement("div",{key:h.navn,style:Object.assign({},S.hotKort,{borderTop:"3px solid "+h.farve})},
-              React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
-                React.createElement("span",{style:{fontSize:"0.95rem",fontWeight:600,color:h.farve}},h.navn),
-                React.createElement("span",{style:{fontSize:"0.72rem",color:"#5a5a8a"}},h.tid)
-              ),
-              React.createElement("p",{style:{fontSize:"0.82rem",color:"#7070a0",fontStyle:"italic",marginBottom:12}},h.beskr),
-              React.createElement("a",{href:"tel:"+h.tlf.replace(/\s/g,""),style:Object.assign({},S.ringBtn,{background:h.farve})},"Ring "+h.tlf)
-            );
-          }),
-          React.createElement("div",{style:{background:"#1a0a0a",border:"1px solid #3a1a1a",borderRadius:12,padding:"16px",display:"flex",flexDirection:"column",gap:10}},
-            React.createElement("p",{style:{fontSize:"0.85rem",color:"#aa6060",marginBottom:2}},"Akut hjælp"),
-            React.createElement("a",{href:"tel:1813",style:Object.assign({},S.ringBtn,{background:"#c1121f",fontSize:"0.95rem"})},"🏥 1813 – Lægevagt (ikke livstruende)"),
-            React.createElement("a",{href:"tel:112",style:Object.assign({},S.ringBtn,{background:"#E63946",fontSize:"0.95rem"})},"🚨 112 – Livstruende nødsituation")
-          )
-        )}
+          {analyseFase==="adfærdSpørgsmål" && (
+            <div style={{background:"#12122a",border:"1px solid #2a2a4a",borderRadius:14,padding:"20px",display:"flex",flexDirection:"column",gap:14}} className="fade">
+              <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#f0f0ff"}}>Er den adfærd du beskrev den ønskede?</p>
+              {kog.adfærd && <p style={{fontSize:"0.85rem",color:"#7070a0",fontStyle:"italic",borderLeft:"2px solid #E63946",paddingLeft:10,lineHeight:1.55}}>"{kog.adfærd}"</p>}
+              <p style={{fontSize:"0.84rem",color:"#8888aa",lineHeight:1.65}}>Var det den reaktion du gerne ville have haft – eller ønskede du en anden adfærd?</p>
+              <div style={{display:"flex",gap:10}}>
+                <button style={{flex:1,border:"none",borderRadius:10,padding:"13px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",background:"#2DC653"}} onClick={gemAnalyse}>✓ Ja – gem analysen</button>
+                <button style={{flex:1,border:"none",borderRadius:10,padding:"13px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",background:"#9B5DE5"}} onClick={() => setAnalyseFase("udfordring")}>Nej – udfordr tanken</button>
+              </div>
+            </div>
+          )}
+
+          {analyseFase==="udfordring" && (
+            <div style={{background:"#12122a",border:"1px solid #2DC65340",borderRadius:14,padding:"18px",display:"flex",flexDirection:"column",gap:12}} className="fade">
+              <p style={{fontSize:"0.7rem",color:"#2DC653",textTransform:"uppercase",letterSpacing:"0.1em"}}>⑥ Udfordring af tanken</p>
+              <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#f0f0ff"}}>Hvad er en mere balanceret tanke?</p>
+              <p style={{fontSize:"0.85rem",color:"#8888aa",lineHeight:1.65}}>Automatiske tanker er ikke altid sande – de er hypoteser der kan undersøges. Find beviser <strong style={{color:"#2DC653"}}>FOR</strong> og <strong style={{color:"#E63946"}}>IMOD</strong> tanken.</p>
+              {kog.tanke && (
+                <div style={{background:"#0f0f26",borderRadius:8,padding:"10px 12px",borderLeft:"3px solid #F4A261"}}>
+                  <p style={{fontSize:"0.7rem",color:"#F4A261",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}}>Din automatiske tanke</p>
+                  <p style={{fontSize:"0.87rem",color:"#c0b080",fontStyle:"italic"}}>"{kog.tanke}"</p>
+                </div>
+              )}
+              <textarea style={{background:"#0d0d22",border:"1px solid #2DC65350",borderRadius:8,padding:"12px",color:"#dcdcee",fontSize:"0.87rem",resize:"vertical",width:"100%",lineHeight:1.6}} rows={4}
+                placeholder="Fx: 'En mere realistisk tanke er at jeg har klaret svære situationer før, og at jeg kan søge hjælp…'"
+                value={kog.udfordring||""} onChange={e => updKog("udfordring",e.target.value)}/>
+              {kog.udfordring && (
+                <button style={{background:"#2DC653",border:"none",borderRadius:8,padding:"10px 16px",fontSize:"0.85rem",cursor:"pointer",color:"#0a1f14",width:"100%"}}
+                  onClick={() => setAnalyseFase("handling")}>Videre til ny handling →</button>
+              )}
+            </div>
+          )}
+
+          {analyseFase==="handling" && (
+            <div style={{background:"#12122a",border:"1px solid #06D6A040",borderRadius:14,padding:"18px",display:"flex",flexDirection:"column",gap:12}} className="fade">
+              <p style={{fontSize:"0.7rem",color:"#06D6A0",textTransform:"uppercase",letterSpacing:"0.1em"}}>⑦ Ny handling</p>
+              <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#f0f0ff"}}>Hvad er et alternativt valg du kan træffe nu?</p>
+              <p style={{fontSize:"0.85rem",color:"#8888aa",lineHeight:1.65}}>Baseret på din nye tanke – hvad er ét lille konkret skridt du KAN tage?</p>
+              {kog.udfordring && (
+                <div style={{background:"#0d1f18",borderRadius:8,padding:"10px 12px",borderLeft:"3px solid #2DC653"}}>
+                  <p style={{fontSize:"0.7rem",color:"#2DC653",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}}>Din nye tanke</p>
+                  <p style={{fontSize:"0.87rem",color:"#90d8b8",fontStyle:"italic"}}>"{kog.udfordring}"</p>
+                </div>
+              )}
+              <textarea style={{background:"#0d0d22",border:"1px solid #06D6A050",borderRadius:8,padding:"12px",color:"#dcdcee",fontSize:"0.87rem",resize:"vertical",width:"100%",lineHeight:1.6}} rows={3}
+                placeholder="Fx: Ring til min behandler, gå en tur, skriv i dagbogen…"
+                value={kog.handling||""} onChange={e => updKog("handling",e.target.value)}/>
+              {kog.handling && (
+                <button style={{background:"#06D6A0",border:"none",borderRadius:8,padding:"10px 16px",fontSize:"0.85rem",cursor:"pointer",color:"#0a1f14",width:"100%"}}
+                  onClick={() => setAnalyseFase("nyAnalyseSpørgsmål")}>Afslut trin →</button>
+              )}
+            </div>
+          )}
+
+          {analyseFase==="nyAnalyseSpørgsmål" && (
+            <div style={{background:"#12122a",border:"1px solid #2a2a4a",borderRadius:14,padding:"20px",display:"flex",flexDirection:"column",gap:14}} className="fade">
+              <p style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.1rem",color:"#f0f0ff"}}>Har du lyst til at lave en ny analyse?</p>
+              {kog.handling && <p style={{fontSize:"0.85rem",color:"#7070a0",fontStyle:"italic",borderLeft:"2px solid #06D6A0",paddingLeft:10,lineHeight:1.55}}>"{kog.handling}"</p>}
+              <p style={{fontSize:"0.84rem",color:"#8888aa",lineHeight:1.65}}>Har du lyst til at lave en ny analyse på baggrund af din nye ønskede tanke eller handling? Den nye analyse starter med din handling som udgangspunkt.</p>
+              <div style={{display:"flex",gap:10}}>
+                <button style={{flex:1,border:"none",borderRadius:10,padding:"13px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",background:"#2DC653"}}
+                  onClick={() => {gemAnalyse();startNyRunde();}}>Ja – ny analyse</button>
+                <button style={{flex:1,border:"none",borderRadius:10,padding:"13px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",background:"#4895EF"}}
+                  onClick={gemAnalyse}>Nej – gem og afslut</button>
+              </div>
+            </div>
+          )}
+
+          {harTrinIndhold && (
+            <button style={{background:"none",border:"none",color:"#4a4a6a",fontSize:"0.75rem",cursor:"pointer",textDecoration:"underline",alignSelf:"flex-end"}} onClick={rydAnalyse}>Ryd analyse</button>
+          )}
+        </div>}
+
+        {/* ══ DAGBOG ══ */}
+        {view==="dagbog" && <div style={s.col}>
+          <div><p style={s.pageTitle}>📖 Dagbog</p><p style={s.pageSub}>Dine registreringer – gemt kun på denne enhed</p></div>
+          <div style={{display:"flex",gap:8}}>
+            {[{id:"alle",l:"Alle"},{id:"analyse",l:"Analyser"},{id:"tjek",l:"Følelsestjek"}].map(fl => (
+              <button key={fl.id} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid",cursor:"pointer",fontSize:"0.82rem",
+                background:dagFilter===fl.id?"#9B5DE5":"transparent",borderColor:dagFilter===fl.id?"#9B5DE5":"#2a2a4a",color:dagFilter===fl.id?"#fff":"#6a6a9a"}}
+                onClick={() => setDagFilter(fl.id)}>{fl.l}</button>
+            ))}
+          </div>
+          {filtreret.length===0 && (
+            <div style={{textAlign:"center",padding:"40px 20px",color:"#4a4a6a"}}>
+              <p style={{fontSize:"1.5rem",marginBottom:12}}>📖</p>
+              <p style={{fontSize:"0.9rem"}}>Ingen registreringer endnu.</p>
+              <p style={{fontSize:"0.78rem",marginTop:6}}>Lav et følelsestjek eller en kognitiv analyse – de gemmes automatisk her.</p>
+            </div>
+          )}
+          {filtreret.map(post => (
+            <div key={post.id}>
+              <button style={{width:"100%",background:"#12122a",border:"1px solid #1e1e40",borderLeft:post.type==="analyse"?"4px solid #06D6A0":"4px solid #4895EF",borderRadius:10,padding:"14px 16px",display:"flex",alignItems:"center",cursor:"pointer",color:"#dcdcee",textAlign:"left"}}
+                onClick={() => setDagbogId(dagbogId===post.id?null:post.id)}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",width:"100%",gap:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
+                    <span style={{fontSize:"1.3rem"}}>{post.type==="analyse"?"⟳":post.emoji}</span>
+                    <div style={{textAlign:"left"}}>
+                      <p style={{fontSize:"0.9rem",fontWeight:500,color:"#e0e0f0",marginBottom:2}}>{post.type==="analyse"?`Kognitiv analyse${post.runde>1?" – runde "+post.runde:""}`:post.navn}</p>
+                      <p style={{fontSize:"0.72rem",color:"#5a5a8a"}}>{post.dato}</p>
+                    </div>
+                  </div>
+                  {post.type==="tjek" && (
+                    <div style={{display:"flex",flexDirection:"column",gap:3,flexShrink:0,alignItems:"flex-end"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <span style={{fontSize:"0.62rem",color:"#5a5a8a"}}>Følelse</span>
+                        <div style={{width:36,background:"#1a1a3a",borderRadius:3,height:3}}><div style={{width:`${post.intensitet*10}%`,height:"100%",background:post.farve,borderRadius:3}}/></div>
+                        <span style={{fontSize:"0.65rem",color:"#5a5a8a"}}>{post.intensitet}/10</span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <span style={{fontSize:"0.62rem",color:"#5a5a8a"}}>Trang</span>
+                        <div style={{width:36,background:"#1a1a3a",borderRadius:3,height:3}}><div style={{width:`${(post.trang||0)*10}%`,height:"100%",background:"#E63946",borderRadius:3}}/></div>
+                        <span style={{fontSize:"0.65rem",color:"#5a5a8a"}}>{post.trang||0}/10</span>
+                      </div>
+                    </div>
+                  )}
+                  <span style={{color:"#3a3a5a",flexShrink:0}}>{dagbogId===post.id?"▲":"▼"}</span>
+                </div>
+              </button>
+              {dagbogId===post.id && (
+                <div style={{background:"#0e0e25",borderLeft:post.type==="analyse"?"4px solid #06D6A0":"4px solid #4895EF",borderRadius:"0 0 10px 10px",padding:"16px",marginTop:-2,display:"flex",flexDirection:"column",gap:10}} className="fade">
+                  {post.type==="tjek" && <>
+                    {post.følelser ? (
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {post.følelser.sort((a,b)=>b.intensitet-a.intensitet).map((f,i) => {
+                          const erHøjest = f.intensitet === post.følelser[0].intensitet;
+                          return (
+                            <div key={f.id} style={{display:"flex",alignItems:"center",gap:10,opacity:erHøjest?1:0.6}}>
+                              <span style={{fontSize:"1.4rem"}}>{f.emoji}</span>
+                              <div style={{flex:1}}>
+                                <div style={{display:"flex",justifyContent:"space-between"}}>
+                                  <span style={{fontSize:"0.87rem",color:f.farve,fontWeight:erHøjest?600:400}}>{f.navn}</span>
+                                  <span style={{fontSize:"0.78rem",color:"#5a5a8a"}}>{f.intensitet}/10</span>
+                                </div>
+                                <div style={{background:"#1a1a3a",borderRadius:4,height:3,marginTop:4}}>
+                                  <div style={{width:`${f.intensitet*10}%`,height:"100%",background:f.farve,borderRadius:4}}/>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <p style={{fontSize:"0.78rem",color:"#5a5a8a"}}>Trang: {post.trang||0}/10</p>
+                      </div>
+                    ) : (
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <span style={{fontSize:"1.8rem"}}>{post.emoji}</span>
+                        <div>
+                          <p style={{fontSize:"1rem",fontWeight:600,color:post.farve}}>{post.navn}</p>
+                          <p style={{fontSize:"0.78rem",color:"#5a5a8a"}}>Følelse: {post.intensitet}/10 · Trang: {post.trang||0}/10</p>
+                        </div>
+                      </div>
+                    )}
+                    {post.note && <p style={{fontSize:"0.87rem",color:"#b0b0cc",lineHeight:1.6,fontStyle:"italic",borderLeft:"2px solid #4895EF",paddingLeft:10}}>"{post.note}"</p>}
+                  </>}
+                  {post.type==="analyse" && (
+                    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                      {[
+                        {felt:"situation",titel:"① Situation",farve:"#4895EF"},
+                        {felt:"tanke",titel:"② Automatisk tanke",farve:"#F4A261"},
+                        {felt:"følelse",titel:"③ Følelse",farve:"#9B5DE5"},
+                        {felt:"krop",titel:"④ Kropslig reaktion",farve:"#C77DFF"},
+                        {felt:"adfærd",titel:"⑤ Adfærd / Handling",farve:"#E63946"},
+                        {felt:"udfordring",titel:"⑥ Udfordring af tanken",farve:"#2DC653"},
+                        {felt:"handling",titel:"⑦ Ny handling",farve:"#06D6A0"},
+                      ].filter(t => post.indhold?.[t.felt]).map(t => (
+                        <div key={t.felt}>
+                          <span style={{fontSize:"0.7rem",textTransform:"uppercase",letterSpacing:"0.08em",color:t.farve,fontWeight:600}}>{t.titel}</span>
+                          <p style={{fontSize:"0.87rem",color:"#b0c0b8",lineHeight:1.55,marginTop:4}}>{post.indhold[t.felt]}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          {filtreret.length>0 && <p style={{fontSize:"0.72rem",color:"#3a3a5a",textAlign:"center"}}>{filtreret.length} registreringer · Gemt lokalt på denne enhed</p>}
+        </div>}
+
+        {/* ══ STØTTE ══ */}
+        {view==="støtte" && <div style={s.col}>
+          <div><p style={s.pageTitle}>Støtte & hjælp</p><p style={s.pageSub}>Du behøver ikke klare det alene</p></div>
+          <p style={s.lbl}>Mine støttepersoner – gemmes automatisk</p>
+          {sup.map((sp,i) => (
+            <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",background:"#12122a",borderRadius:12,padding:"12px"}}>
+              <div style={{width:40,height:40,borderRadius:"50%",background:"#1e1e50",display:"flex",alignItems:"center",justifyContent:"center",color:"#9B5DE5",fontSize:"1rem",flexShrink:0,fontWeight:600}}>{sp.navn?sp.navn[0].toUpperCase():"?"}</div>
+              <div style={{flex:1,display:"flex",flexDirection:"column",gap:8}}>
+                <input style={s.inp} placeholder="Navn eller rolle" value={sp.navn} onChange={e => updSup(i,"navn",e.target.value)}/>
+                <input style={s.inp} placeholder="Telefonnummer" value={sp.tlf} onChange={e => updSup(i,"tlf",e.target.value)}/>
+              </div>
+            </div>
+          ))}
+          <button style={s.addBtn} onClick={() => setSup(p => [...p,{navn:"",tlf:""}])}>+ Tilføj kontakt</button>
+          <p style={s.lbl}>Professionelle hjælpelinjer</p>
+          {[
+            {navn:"Giftlinjen – overdosis/forgiftning",tlf:"82 12 12 12",tid:"Døgnet rundt",beskr:"Akut rådgivning ved forgiftning, overdosis og rusmidler",farve:"#E63946"},
+            {navn:"Alkolinjen – alkohol",tlf:"80 200 500",tid:"Man 9-17, tir-fre 11-17",beskr:"Anonym rådgivning om alkoholproblemer",farve:"#F4A261"},
+            {navn:"Livslinjen",tlf:"70 201 201",tid:"Døgnet rundt",beskr:"Når det er livstruende svært",farve:"#4895EF"},
+            {navn:"SMS-rådgivning",tlf:"Sms 1899",tid:"11–24 alle dage",beskr:"Skriv hvis du ikke vil tale",farve:"#9B5DE5"},
+          ].map(h => (
+            <div key={h.navn} style={{background:"#12122a",borderRadius:12,padding:"16px",border:"1px solid #1e1e40",borderTop:`3px solid ${h.farve}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <span style={{fontSize:"0.95rem",fontWeight:600,color:h.farve}}>{h.navn}</span>
+                <span style={{fontSize:"0.72rem",color:"#5a5a8a"}}>{h.tid}</span>
+              </div>
+              <p style={{fontSize:"0.82rem",color:"#7070a0",fontStyle:"italic",marginBottom:12}}>{h.beskr}</p>
+              <a href={`tel:${h.tlf.replace(/\s/g,"")}`} style={{display:"block",textAlign:"center",padding:"10px",borderRadius:8,color:"#fff",textDecoration:"none",fontSize:"0.92rem",fontWeight:500,background:h.farve}}>Ring {h.tlf}</a>
+            </div>
+          ))}
+          <div style={{background:"#1a0a0a",border:"1px solid #3a1a1a",borderRadius:12,padding:"16px",display:"flex",flexDirection:"column",gap:10}}>
+            <p style={{fontSize:"0.85rem",color:"#aa6060",marginBottom:2}}>Akut hjælp</p>
+            <a href="tel:1813" style={{display:"block",textAlign:"center",padding:"10px",borderRadius:8,color:"#fff",textDecoration:"none",fontSize:"0.95rem",fontWeight:500,background:"#c1121f"}}>🏥 1813 – Lægevagt (ikke livstruende)</a>
+            <a href="tel:112" style={{display:"block",textAlign:"center",padding:"10px",borderRadius:8,color:"#fff",textDecoration:"none",fontSize:"0.95rem",fontWeight:500,background:"#E63946"}}>🚨 112 – Livstruende nødsituation</a>
+          </div>
+        </div>}
 
       </main>
+
       <div style={{textAlign:"center",padding:"20px 16px 8px",fontSize:"0.7rem",color:"#3a3a5a",borderTop:"1px solid #12122a",marginTop:8}}>
         © Jannick Sørensen 2026 · Alle rettigheder forbeholdes
       </div>
     </div>
   );
 }
+
+const s = {
+  root:{minHeight:"100vh",background:"#0b0b1a",color:"#dcdcee",fontFamily:"'DM Sans',sans-serif",maxWidth:500,margin:"0 auto"},
+  welcomeWrap:{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"},
+  welcomeCard:{background:"#12122a",border:"1px solid #2a2a4a",borderRadius:20,padding:"28px 22px",width:"100%",maxWidth:440,display:"flex",flexDirection:"column",gap:14},
+  welcomeBox:{background:"#0d0d22",border:"1px solid #1e1e40",borderRadius:12,padding:"14px"},
+  welcomeTitle:{fontSize:"0.73rem",textTransform:"uppercase",letterSpacing:"0.1em",color:"#9B5DE5",marginBottom:7,fontWeight:600},
+  welcomeText:{fontSize:"0.87rem",color:"#9090b0",lineHeight:1.7},
+  acceptBtn:{background:"#9B5DE5",border:"none",borderRadius:12,padding:"14px",color:"#fff",fontSize:"0.95rem",cursor:"pointer",width:"100%",fontFamily:"'DM Sans',sans-serif"},
+  header:{background:"linear-gradient(160deg,#0f0f28,#161636)",borderBottom:"1px solid #1c1c38",padding:"18px 16px 14px"},
+  nav:{display:"flex",background:"#0d0d22",borderBottom:"1px solid #1c1c38",position:"sticky",top:0,zIndex:10},
+  navBtn:{flex:1,padding:"9px 4px 7px",background:"none",border:"none",color:"#4a4a7a",fontSize:"0.58rem",display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer",borderBottom:"2px solid transparent"},
+  navOn:{color:"#9B5DE5",borderBottom:"2px solid #9B5DE5"},
+  menuOverlay:{position:"fixed",inset:0,background:"rgba(5,5,18,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"flex-start",justifyContent:"flex-end",zIndex:200,padding:"60px 0 0"},
+  menuPanel:{background:"#12122e",borderRadius:"0 0 0 16px",width:"85%",maxWidth:320,padding:"16px",display:"flex",flexDirection:"column",gap:4,border:"1px solid #2a2a4a",borderTop:"none",borderRight:"none",maxHeight:"80vh",overflowY:"auto"},
+  menuHeader:{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:12,borderBottom:"1px solid #1e1e40",marginBottom:8},
+  menuItem:{display:"flex",alignItems:"center",gap:12,padding:"12px",borderRadius:10,background:"none",border:"none",cursor:"pointer",width:"100%",color:"#dcdcee",transition:"background 0.15s"},
+  main:{padding:"20px 16px"},
+  col:{display:"flex",flexDirection:"column",gap:14},
+  lbl:{fontSize:"0.7rem",textTransform:"uppercase",letterSpacing:"0.12em",color:"#5a5a8a"},
+  infoBox:{background:"#12122a",border:"1px solid #1e1e40",borderRadius:12,padding:"16px"},
+  grid2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  toolCard:{background:"#12122a",border:"1px solid #1e1e40",borderRadius:14,padding:"16px 12px",display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer",color:"#dcdcee",textAlign:"center"},
+  pageTitle:{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#f0f0ff",marginBottom:6},
+  pageSub:{fontSize:"0.84rem",color:"#6a6a9a",fontStyle:"italic"},
+  planSek:{background:"#11112a",border:"1px solid #1e1e40",borderRadius:14,overflow:"hidden"},
+  planHdr:{padding:"16px",display:"flex",alignItems:"flex-start",gap:12,background:"#13132e"},
+  planBody:{padding:"16px",display:"flex",flexDirection:"column",gap:10},
+  planHjælp:{fontSize:"0.84rem",color:"#7070a0",lineHeight:1.65,fontStyle:"italic"},
+  planInput:{flex:1,background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:8,padding:"9px 12px",color:"#dcdcee",fontSize:"0.87rem"},
+  planTA:{background:"#0d0d22",border:"1px solid",borderRadius:8,padding:"12px",color:"#dcdcee",fontSize:"0.87rem",resize:"vertical",width:"100%",lineHeight:1.6},
+  addBtn:{background:"none",border:"1px dashed #2a2a4a",borderRadius:10,color:"#6a6a9a",padding:"10px",width:"100%",cursor:"pointer",fontSize:"0.85rem"},
+  følGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  følKort:{background:"#12122a",border:"1px solid",borderRadius:14,padding:"18px 12px",display:"flex",flexDirection:"column",alignItems:"center",gap:6,cursor:"pointer",color:"#dcdcee"},
+  backBtn:{background:"none",border:"1px solid #2a2a4a",color:"#6a6a9a",borderRadius:8,padding:"8px 14px",cursor:"pointer",fontSize:"0.82rem"},
+  trinHdr:{width:"100%",background:"#11112a",border:"1px solid #1e1e40",borderRadius:10,padding:"14px 16px",display:"flex",alignItems:"center",cursor:"pointer",color:"#dcdcee",gap:8},
+  inp:{background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:8,padding:"9px 12px",color:"#dcdcee",fontSize:"0.87rem",width:"100%"},
+  modalBg:{position:"fixed",inset:0,background:"rgba(5,5,18,0.88)",backdropFilter:"blur(4px)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:100},
+  modalCard:{background:"#12122e",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:500,display:"flex",flexDirection:"column",gap:12,border:"1px solid #2a2a4a",borderBottom:"none"},
+  modalTA:{background:"#0d0d22",border:"1px solid #2a2a4a",borderRadius:8,padding:"10px",color:"#dcdcee",fontSize:"0.87rem",resize:"none",width:"100%"},
+  modalGemBtn:{background:"#9B5DE5",border:"none",borderRadius:10,padding:"12px",color:"#fff",fontSize:"0.92rem",cursor:"pointer",width:"100%"},
+};
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
