@@ -649,7 +649,7 @@ function App() {
         {navItems.map(n => (
           <button key={n.id} style={{...s.navBtn,...(view===n.id?s.navOn:{})}} onClick={() => setView(n.id)}>
             <span style={{fontSize:"0.9rem"}}>{n.sym}</span>
-            <span>{n.l}</span>
+            <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%"}}>{n.l}</span>
           </button>
         ))}
       </nav>
@@ -1175,7 +1175,7 @@ const s = {
   acceptBtn:{background:"#9B5DE5",border:"none",borderRadius:12,padding:"14px",color:"#fff",fontSize:"0.95rem",cursor:"pointer",width:"100%",fontFamily:"'DM Sans',sans-serif"},
   header:{background:"linear-gradient(160deg,#0f0f28,#161636)",borderBottom:"1px solid #1c1c38",padding:"18px 16px 14px"},
   nav:{display:"flex",background:"#0d0d22",borderBottom:"1px solid #1c1c38",position:"sticky",top:0,zIndex:10,width:"100%"},
-  navBtn:{flex:1,padding:"9px 4px 7px",background:"none",border:"none",color:"#4a4a7a",fontSize:"0.58rem",display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer",borderBottom:"2px solid transparent"},
+  navBtn:{flex:"1 1 0",padding:"9px 2px 7px",background:"none",border:"none",color:"#4a4a7a",fontSize:"0.55rem",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,cursor:"pointer",borderBottom:"2px solid transparent",minWidth:0,textAlign:"center",overflow:"hidden"},
   navOn:{color:"#9B5DE5",borderBottom:"2px solid #9B5DE5"},
   menuOverlay:{position:"fixed",inset:0,background:"rgba(5,5,18,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"flex-start",justifyContent:"flex-end",zIndex:200,padding:"60px 0 0"},
   menuPanel:{background:"#12122e",borderRadius:"0 0 0 16px",width:"85%",maxWidth:320,padding:"16px",display:"flex",flexDirection:"column",gap:4,border:"1px solid #2a2a4a",borderTop:"none",borderRight:"none",maxHeight:"80vh",overflowY:"auto"},
