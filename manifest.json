@@ -1,6 +1,7 @@
 {
   "name": "Min Kriseplan",
   "short_name": "Kriseplan",
+  "id": "/Min-Kriseplan/",
   "description": "Kognitiv selvhjælpsapp til rusmiddelproblematik",
   "start_url": "/Min-Kriseplan/",
   "display": "standalone",
